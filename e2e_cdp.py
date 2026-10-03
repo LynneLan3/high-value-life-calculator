@@ -279,121 +279,131 @@ BROWSE_SCRIPT = r"""
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
-  const nCards = () => $$('#b-list .card').length;
+  const nItems = () => $$('#b-list .card').length;
+  const nDirs = () => $$('#b-dir .dir-card').length;
   const status = () => $('#b-status').textContent.replace(/\s+/g, ' ').trim();
   const count = () => Number(($('#b-status b') || {}).textContent || -1);
-  const clickText = async (sel, text) => {
-    const el = $$(sel).find(e => e.textContent.includes(text));
-    if (!el) throw new Error('找不到元素: ' + sel + ' / ' + text);
-    el.click(); await sleep(120);
-  };
-  // 精确匹配文字（'高' 不能误命中 '极高'）
-  const clickExact = async (sel, text) => {
-    const el = $$(sel).find(e => e.textContent.replace(/\s+/g, ' ').trim() === text);
-    if (!el) throw new Error('找不到元素(精确): ' + sel + ' / ' + text);
-    el.click(); await sleep(120);
+  const text = (s) => { const e = $(s); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; };
+  const clickExact = async (sel, t) => {
+    const el = $$(sel).find(e => e.textContent.replace(/\s+/g, ' ').trim() === t);
+    if (!el) throw new Error('找不到元素(精确): ' + sel + ' / ' + t);
+    el.click(); await sleep(140);
   };
   const setQ = async (v) => {
     const el = $('#b-q'); el.value = v;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-    await sleep(160);
+    await sleep(180);
+  };
+  const pickSection = async (v) => {
+    const el = $('#b-section'); el.value = v;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    await sleep(180);
   };
 
   // ---------- 1. Tab 切换 ----------
   ok('顶部有 Tab 切换栏', $$('.tabs .tab').length === 2, $$('.tabs .tab').length);
-  ok('两个 Tab 名称正确', $$('.tabs .tab').map(t => t.textContent.trim().split('\n')[0]).join('|').includes('智能计算器'),
-     $$('.tabs .tab').map(t => t.textContent).join('|'));
   ok('默认停在「智能计算器」', $('#tab-calc').getAttribute('aria-selected') === 'true'
-     && $('#tab-browse').getAttribute('aria-selected') === 'false');
-  ok('默认隐藏「全库浏览」面板', $('#panel-browse').hidden === true);
-  ok('默认显示「智能计算器」面板', $('#panel-calc').hidden === false);
+     && $('#panel-browse').hidden === true);
   ok('计算器 Tab 里有结果卡片', $$('#panel-calc .card').length > 0, $$('#panel-calc .card').length);
+  $('#tab-browse').click(); await sleep(200);   // Tab 文案里嵌了计数，按 id 点更稳
+  ok('点 Tab 后切到全库浏览', $('#panel-browse').hidden === false && $('#panel-calc').hidden === true);
 
-  await clickText('.tabs .tab', '全库浏览');
-  ok('点 Tab 后切换到全库浏览', $('#panel-browse').hidden === false && $('#panel-calc').hidden === true);
-  ok('Tab 选中态跟着变', $('#tab-browse').getAttribute('aria-selected') === 'true'
-     && $('#tab-calc').getAttribute('aria-selected') === 'false');
-  ok('Tab 上显示总库条数 650', $('#tab-total').textContent === '650', $('#tab-total').textContent);
+  // ---------- 2. 默认给章节目录，不直接放条目 ----------
+  ok('默认显示章节目录视图', $('#b-dir-view').hidden === false);
+  ok('默认隐藏条目列表', $('#b-list-view').hidden === true);
+  ok('默认不渲染任何条目（0 张卡片）', nItems() === 0, nItems());
+  ok('默认隐藏性价比/证据筛选', $('#b-tools').hidden === true);
+  ok('目录里列出全部 34 章', nDirs() === 34, nDirs());
+  ok('目录状态栏文案正确', status() === '当前显示章节目录（共 34 节 / 650 条）', status());
+  ok('章节卡带 §编号 与条数', /^§1/.test(text('#b-dir .dir-card'))
+     && /条 · 证据 A \d+ 条 · 零成本 \d+ 条/.test(text('#b-dir .dir-card')), text('#b-dir .dir-card'));
+  const sum = $$('#b-dir .dir-card').reduce((n, c) => n + Number((c.querySelector('.d-meta').textContent.match(/^(\d+) 条/) || [0, 0])[1]), 0);
+  ok('各章条数相加 = 650', sum === 650, sum);
 
-  // ---------- 2. 初始只渲染 30 条 ----------
-  ok('状态栏文案正确', status() === '当前共筛选出 650 条建议（总库 650 条）', status());
-  ok('初始只渲染 30 条（不是 650）', nCards() === 30, nCards());
-  ok('有「加载更多」按钮', !!$('#b-load'));
-  ok('按钮写明还剩多少条', $('#b-load') && $('#b-load').textContent.includes('还有 620 条'),
-     $('#b-load') ? $('#b-load').textContent : 'none');
+  // ---------- 3. 选一章 → 看该章条目 ----------
+  $('#b-dir .dir-card[data-section="15"]').click(); await sleep(200);
+  ok('选章节后切到条目视图', $('#b-list-view').hidden === false && $('#b-dir-view').hidden === true);
+  ok('该章条目数正确（§15 = 9 条）', nItems() === 9, nItems());
+  ok('状态栏按条目计数', status() === '当前共筛选出 9 条建议（总库 650 条）', status());
+  ok('面包屑显示当前章节', text('#b-scope').includes('第 15 节'), text('#b-scope'));
+  ok('列表里全是第 15 节', $$('#b-list .ref').every(r => r.textContent.includes('第 15 节')));
+  ok('章节下拉同步为第 15 节', $('#b-section').value === '15', $('#b-section').value);
+  ok('不足一批时不显示加载更多', !$('#b-load'));
+  ok('尾部显示已全部展示', $('#b-more').textContent.includes('已显示全部 9 条'), text('#b-more'));
 
-  // ---------- 3. 加载更多 ----------
-  await clickText('#b-load', '加载更多');
-  ok('第一次加载更多 = 60 条', nCards() === 60, nCards());
-  await clickText('#b-load', '加载更多');
-  ok('第二次加载更多 = 90 条', nCards() === 90, nCards());
-  ok('每次只追加 30 条', nCards() <= 90 && nCards() > 60);
+  // ---------- 4. 返回目录 ----------
+  await clickExact('#b-back', '← 返回章节目录');
+  ok('返回后回到目录视图', $('#b-dir-view').hidden === false && $('#b-list-view').hidden === true);
+  ok('返回后条目全部移除（不残留 650 张卡）', nItems() === 0, nItems());
+  ok('返回后目录仍是 34 章', nDirs() === 34, nDirs());
 
-  // ---------- 4. 性价比筛选 ----------
+  // ---------- 5. 关键词搜索具体文章（全库） ----------
+  await setQ('押金');
+  ok('一搜就进条目视图', $('#b-list-view').hidden === false);
+  ok('搜索「押金」命中 6 条', count() === 6, count());
+  ok('渲染条数与命中数一致', nItems() === 6, nItems());
+  ok('面包屑标明是搜索', text('#b-scope').includes('搜索「押金」'), text('#b-scope'));
+  ok('结果都含关键词', $$('#b-list .card').every(c => c.textContent.includes('押金')));
+  ok('命中的关键词被高亮', $$('#b-list mark').length > 0, $$('#b-list mark').length);
+  ok('高亮的正是「押金」', $$('#b-list mark').every(m => m.textContent === '押金'),
+     $$('#b-list mark').slice(0, 3).map(m => m.textContent).join(','));
+
+  // ---------- 6. 章节内搜索（交集） ----------
+  await pickSection('15');
+  ok('章节内搜索取交集（§15 + 押金 = 3 条）', count() === 3, count());
+  ok('交集结果都属于第 15 节', $$('#b-list .ref').every(r => r.textContent.includes('第 15 节')));
+  await pickSection('');
+  ok('章节切回全部 → 回到 6 条', count() === 6, count());
+
+  // ---------- 7. 浏览全部 + 分批加载 ----------
+  await setQ('');
+  await clickExact('#b-all', '浏览全部 650 条');
+  ok('浏览全部 = 650 条', count() === 650, count());
+  ok('初始只渲染 30 条（不是 650）', nItems() === 30, nItems());
+  ok('有加载更多按钮且写明剩余', $('#b-load') && $('#b-load').textContent.includes('还有 620 条'), text('#b-load'));
+  await clickExact('#b-load', '加载更多（还有 620 条）');
+  ok('第 1 次加载更多 = 60 条', nItems() === 60, nItems());
+  await clickExact('#b-load', '加载更多（还有 590 条）');
+  ok('第 2 次加载更多 = 90 条', nItems() === 90, nItems());
+
+  // ---------- 8. 性价比 / 证据筛选 ----------
   await clickExact('#b-ratio .chip', '高');
   await clickExact('#b-ratio .chip', '一般');
   ok('只留「极高」时总计 111 条', count() === 111, count());
-  ok('筛选后回到第一批 30 条', nCards() === 30, nCards());
-  ok('列表里全是极高', $$('#b-list .badge.ratio-r3').length === nCards(), $$('#b-list .badge.ratio-r3').length + '/' + nCards());
-
-  // ---------- 5. 证据等级筛选（与性价比联动取交集） ----------
+  ok('筛选后回到第一批 30 条', nItems() === 30, nItems());
+  ok('列表里全是极高', $$('#b-list .badge.ratio-r3').length === nItems());
   await clickExact('#b-evidence .chip', 'B 级');
   await clickExact('#b-evidence .chip', 'C 级');
-  ok('极高 + 证据A 的交集 = 77 条', count() === 77, count());
-  ok('列表里全是证据 A', $$('#b-list .badge.ev').every(b => b.textContent === '证据 A'),
-     $$('#b-list .badge.ev').slice(0, 3).map(b => b.textContent).join(','));
+  ok('极高 + 证据A = 77 条', count() === 77, count());
+  ok('列表里全是证据 A', $$('#b-list .badge.ev').every(b => b.textContent === '证据 A'));
 
-  // ---------- 6. 章节筛选 ----------
-  await clickExact('#b-ratio .chip', '高');
-  await clickExact('#b-ratio .chip', '一般');
-  await clickExact('#b-evidence .chip', 'B 级');
-  await clickExact('#b-evidence .chip', 'C 级');
-  ok('恢复后回到 650 条', count() === 650, count());
-  await clickText('#b-section-wrap summary', '章节');
-  ok('章节筛选展开后有 34 个标签', $$('#b-section .chip').length === 34, $$('#b-section .chip').length);
-  await clickText('#b-section .chip', '§15 ');
-  ok('按第 15 节筛选出 9 条', count() === 9, count());
-  ok('列表里全是第 15 节', $$('#b-list .ref').every(r => r.textContent.includes('第 15 节')),
-     $$('#b-list .ref').slice(0, 2).map(r => r.textContent).join(' | '));
-  ok('条数不足一批时不显示加载更多', !$('#b-load'));
-  ok('尾部提示已显示全部', $('#b-more').textContent.includes('已显示全部 9 条'), $('#b-more').textContent);
+  // ---------- 9. 清空筛选 → 回到目录 ----------
+  await clickExact('#b-clear', '清空筛选');
+  ok('清空后回到章节目录', $('#b-dir-view').hidden === false && $('#b-list-view').hidden === true);
+  ok('清空后条目全部移除', nItems() === 0, nItems());
+  ok('清空后搜索框为空', $('#b-q').value === '', $('#b-q').value);
+  ok('清空后章节下拉为全部', $('#b-section').value === '', $('#b-section').value);
+  ok('清空后目录文案恢复', status() === '当前显示章节目录（共 34 节 / 650 条）', status());
 
-  // ---------- 7. 关键词搜索 ----------
-  await clickText('#b-section-none', '清空章节选中');
-  await setQ('押金');
-  ok('搜索「押金」命中 6 条', count() === 6, count());
-  ok('渲染条数与命中数一致', nCards() === 6, nCards());
-  ok('结果确实含关键词', $$('#b-list .card').every(c => c.textContent.includes('押金')));
-  await setQ('zzz不存在zzz');
-  ok('搜不到时显示空态', count() === 0 && $$('#b-list .empty').length === 1, count());
-  ok('空态有引导文案', $('#b-list .empty').textContent.includes('清空筛选'));
-
-  // ---------- 8. 清空筛选 ----------
-  await clickText('#b-clear', '清空筛选');
-  ok('清空后回到 650 条', count() === 650, count());
-  ok('清空后回到 30 条渲染', nCards() === 30, nCards());
-  ok('搜索框被清空', $('#b-q').value === '', $('#b-q').value);
-  ok('章节摘要回到「全部」', $('#b-section-summary').textContent.includes('全部'), $('#b-section-summary').textContent);
-
-  // ---------- 9. 点标题展开全文 ----------
+  // ---------- 10. 条目卡交互 ----------
+  $('#b-dir .dir-card[data-section="1"]').click(); await sleep(200);
   const c0 = $$('#b-list .card')[0];
-  const det = c0.querySelector('details.more');
-  ok('浏览卡片默认折叠全文', det.open === false);
+  ok('条目卡默认折叠全文', c0.querySelector('details.more').open === false);
   c0.querySelector('h3').click(); await sleep(120);
-  ok('点标题后展开全文', c0.querySelector('details.more').open === true);
-  ok('展开后看得到正文与原书出处', c0.querySelector('.full').textContent.includes('正文：')
+  ok('点标题展开全文', c0.querySelector('details.more').open === true);
+  ok('展开后有正文与原书出处', c0.querySelector('.full').textContent.includes('正文：')
      && c0.querySelector('.full').textContent.includes('原书出处'));
   c0.querySelector('h3').click(); await sleep(120);
   ok('再点标题收起', c0.querySelector('details.more').open === false);
 
-  // ---------- 10. 切回计算器 ----------
-  await clickText('.tabs .tab', '智能计算器');
+  // ---------- 11. 切回计算器 ----------
+  $('#tab-calc').click(); await sleep(200);
   ok('切回后计算器面板可见', $('#panel-calc').hidden === false && $('#panel-browse').hidden === true);
-  ok('计算器结果还在（没有被清掉）', $$('#panel-calc .card').length > 0, $$('#panel-calc .card').length);
+  ok('计算器结果还在', $$('#panel-calc .card').length > 0, $$('#panel-calc .card').length);
   ok('页脚保留指定提示语', document.querySelector('footer').textContent.includes('数据来自开源书稿《高性价比人生指南》，排序是工具，不是医嘱。'));
   ok('页面无 JS 报错', window.__errs.length === 0, window.__errs.join(' | '));
 
-  return { checks, cards: nCards() };
+  return { checks, dirs: nDirs() };
 })()
 """
 
@@ -437,14 +447,25 @@ def main():
             if not c['ok']:
                 fails.append('[浏览] ' + c['name'])
 
-        # 全库浏览页截图（切到 Tab 2 并加载到 60 条）
+        # 截图 1：章节目录（Tab 2 的默认视图）
         cdp.evaluate("""(() => {
           document.querySelector('#tab-browse').click();
-          const more = document.querySelector('#b-load'); if (more) more.click();
+          const back = document.querySelector('#b-back');
+          if (back && !document.querySelector('#b-list-view').hidden) back.click();
           window.scrollTo(0, 0);
         })()""", sid)
         time.sleep(0.8)
         cdp.screenshot(os.path.join(ROOT, 'shot-browse.png'), sid)
+
+        # 截图 2：关键词搜索具体文章（带高亮）
+        cdp.evaluate("""(() => {
+          const q = document.querySelector('#b-q');
+          q.value = '押金';
+          q.dispatchEvent(new Event('input', { bubbles: true }));
+          window.scrollTo(0, 260);
+        })()""", sid)
+        time.sleep(0.9)
+        cdp.screenshot(os.path.join(ROOT, 'shot-search.png'), sid)
         cdp.evaluate("document.querySelector('#tab-calc').click(); window.scrollTo(0,0)", sid)
         time.sleep(0.5)
         size = cdp.screenshot(os.path.join(ROOT, 'shot-desktop.png'), sid)

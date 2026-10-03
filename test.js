@@ -224,6 +224,21 @@ eq('组合筛选取交集（押金 + A）', api.filterLibrary(I, { q: '押金', 
   kw.filter((x) => x.evidence === 'A').length);
 eq('搜不到时返回空数组', api.filterLibrary(I, { q: 'zzz这个词不存在zzz' }).length, 0);
 ok('英文搜索大小写不敏感', api.filterLibrary(I, { q: 'aed' }).length === api.filterLibrary(I, { q: 'AED' }).length);
+// 章节目录（Tab 2 默认视图）
+const dirs = [...new Set(I.map((x) => x.section))].sort((a, b) => a - b);
+eq('章节目录共 34 章', dirs.length, 34);
+eq('各章条数相加 = 全库', dirs.reduce((n, sec) => n + api.filterLibrary(I, { section: sec }).length, 0), I.length);
+ok('每章都有条目且都能单独列出', dirs.every((sec) => {
+  const rows = api.filterLibrary(I, { section: sec });
+  return rows.length > 0 && rows.every((x) => x.section === sec);
+}));
+eq('section 传 null = 不限章节', api.filterLibrary(I, { section: null }).length, I.length);
+eq('章节内搜索取交集（§15 + 押金）',
+  api.filterLibrary(I, { section: 15, q: '押金' }).length,
+  api.filterLibrary(I, { q: '押金' }).filter((x) => x.section === 15).length);
+ok('章节内搜索结果是全库搜索的子集',
+  api.filterLibrary(I, { section: 15, q: '押金' }).length <= api.filterLibrary(I, { q: '押金' }).length);
+
 const kw2 = api.filterLibrary(I, { q: '社保' });
 ok('另一组关键词同样只出命中项', kw2.length > 0 && kw2.every((x) =>
   (x.title + x.body + x.gain).includes('社保')), kw2.length);
