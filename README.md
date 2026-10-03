@@ -1,6 +1,9 @@
 # 高性价比人生计算器
 
+### 🔗 在线试用：**https://lynnelan3.github.io/high-value-life-calculator/**
+
 **一个 HTML 文件装下一本 650 条的书，双击就能用的「决策顾问」小工具。**
+（在线版和下载到本地的 `index.html` 是同一个文件，逐字节一致；在线版只是方便你直接点开看。）
 
 输入现状 → **先诊断** → **精选 Top 3 行动建议** → 最多 6 条 → 其余折叠。
 基于开源书稿《高性价比人生指南》650 条条款的成本收益数据做规则排序。
@@ -13,6 +16,10 @@
 
 ## 🐣 小白使用指南（不懂技术也能用）
 
+### 最省事的方式：直接点网址
+**https://lynnelan3.github.io/high-value-life-calculator/** —— 手机、电脑都能打开，不用下载任何东西。
+
+### 想离线用 / 想收藏：下载这一个文件
 **这个应用只有一个文件：`index.html`。** 不需要安装任何东西，不需要联网，不需要命令行。
 
 ### Mac 用户
@@ -69,7 +76,9 @@
 | `data.json` | 中间产物，便于排查数据或做别的应用 |
 | `test.js` | 引擎单元测试（84 项）。**直接从 `index.html` 抽代码跑**，测的就是页面里那份实现 |
 | `e2e_cdp.py` | 端到端验收（49 项）。CDP over pipe 驱动 Chromium，只用 Python 标准库 |
-| `shot-*.png` | 验收截图：桌面表单、诊断+精选、押金场景、移动端 |
+| `shot-*.png` | 验收截图：首屏、诊断+精选、押金场景、移动端 |
+
+**在线地址**：https://lynnelan3.github.io/high-value-life-calculator/ （GitHub Pages，源就是这个 `index.html`）
 
 ## 运行与验证
 
