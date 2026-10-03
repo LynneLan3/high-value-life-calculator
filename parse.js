@@ -195,7 +195,7 @@ function extractAction(title, body, gain, note, costNote) {
       + (/[不别要先必应]/.test(p) ? 1 : 0);
     if (!bestTitle || v > bestTitle.v) bestTitle = { v, p };
   }
-  if (bestTitle && bestTitle.v >= 3) return clip(bestTitle.p, 26);
+  if (bestTitle && bestTitle.v >= 2) return clip(bestTitle.p, 26);
 
   // 2) 正文补充：必须是动词开头的完整短句，且不含风险/比例这类解释性表述
   let best = null;

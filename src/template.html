@@ -213,12 +213,43 @@ footer{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-si
 footer p{margin:0 0 6px}
 .build-note{margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--green);
   background:var(--green-soft);border:1px solid #c6e2d3;border-radius:8px;padding:7px 11px;display:inline-block}
+
+/* ---------- 顶部 Tab ---------- */
+[hidden]{display:none !important}
+.tabs-wrap{position:sticky;top:0;z-index:30;background:var(--paper);padding:12px 0 10px;
+  border-bottom:1px solid var(--line);margin-bottom:4px}
+.tabs{display:flex;gap:6px;background:var(--paper-2);border:1px solid var(--line);
+  border-radius:12px;padding:5px}
+.tab{flex:1;font:inherit;font-size:14.5px;font-weight:700;color:var(--ink-2);background:transparent;
+  border:0;border-radius:9px;padding:10px 14px;min-height:44px;cursor:pointer;
+  transition:background .18s,color .18s,box-shadow .18s}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.tab .tab-count{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-left:5px}
+.tab[aria-selected=true] .tab-count{color:var(--accent)}
+
+/* ---------- 全库浏览 ---------- */
+.browse-panel{margin-top:18px}
+.status-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);font-size:13.5px;color:var(--ink-2)}
+.status-bar b{font-family:var(--mono);font-size:15px;color:var(--ink)}
+.status-bar .shown{font-size:12.5px;color:var(--ink-3)}
+#b-list{margin-top:14px}
+.card.browse h3{cursor:pointer}
+.card.browse h3:hover{color:var(--accent)}
+.card.browse .sec-tag{font-size:12px;color:var(--ink-3)}
+.load-line{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center;
+  margin-top:18px;font-size:12.5px;color:var(--ink-3)}
+#b-section .chip{font-size:12.5px;padding:6px 11px;min-height:32px}
+.empty.wide{grid-column:1/-1}
+
 @media (max-width:560px){
   header{padding-top:26px}
   .panel,.diagnosis{padding:16px}
   .card{padding:14px 14px 12px}
   .filter-row .lab{min-width:100%}
   .ref{margin-left:0;width:100%}
+  .tab{font-size:13.5px;padding:9px 10px}
 }
 </style>
 </head>
@@ -233,7 +264,18 @@ footer p{margin:0 0 6px}
     <div class="stat-strip" id="stats"></div>
   </header>
 
+  <!-- ================= 顶部 Tab ================= -->
+  <div class="tabs-wrap">
+    <nav class="tabs" role="tablist" aria-label="功能切换">
+      <button class="tab" id="tab-calc" type="button" role="tab" aria-selected="true"
+              aria-controls="panel-calc" data-tab="calc">智能计算器</button>
+      <button class="tab" id="tab-browse" type="button" role="tab" aria-selected="false"
+              aria-controls="panel-browse" data-tab="browse">全库浏览<span class="tab-count" id="tab-total">650</span></button>
+    </nav>
+  </div>
+
   <main>
+   <div id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
     <!-- ================= 表单区 ================= -->
     <section class="panel" aria-labelledby="form-title">
       <div class="panel-head">
@@ -302,9 +344,48 @@ footer p{margin:0 0 6px}
         <p>填好上面的现状（或点一个常见场景），按「生成建议」。系统会先给一段现状诊断，再给 3 条精选行动，其余折叠。</p>
       </div>
     </section>
+   </div><!-- /panel-calc -->
+
+   <!-- ================= 全库浏览 ================= -->
+   <div id="panel-browse" role="tabpanel" aria-labelledby="tab-browse" hidden>
+     <section class="panel browse-panel" aria-labelledby="browse-title">
+       <div class="panel-head">
+         <h2 id="browse-title">全库浏览</h2>
+         <span class="hint">650 条原书内容，按章节 / 性价比 / 证据等级筛选，或直接搜</span>
+       </div>
+
+       <div class="field" style="margin-top:14px">
+         <label for="b-q">关键词搜索 <span class="tip">匹配标题、正文与依据，用 includes 模糊匹配</span></label>
+         <input id="b-q" type="text" placeholder="例如：押金 / 社保 / 加班费 / 安全带 / 彩礼">
+       </div>
+
+       <div class="filter-row"><span class="lab">性价比</span>
+         <div class="chips" id="b-ratio" role="group" aria-label="按性价比筛选"></div></div>
+       <div class="filter-row"><span class="lab">证据等级</span>
+         <div class="chips" id="b-evidence" role="group" aria-label="按证据等级筛选"></div></div>
+
+       <details class="filters" id="b-section-wrap">
+         <summary id="b-section-summary">章节：全部（34 节）</summary>
+         <div class="chips" id="b-section" role="group" aria-label="按章节筛选" style="margin-top:12px"></div>
+         <div class="actions" style="margin-top:12px">
+           <button class="ghost" id="b-section-all" type="button">全选 34 节</button>
+           <button class="ghost" id="b-section-none" type="button">清空章节选中</button>
+         </div>
+       </details>
+
+       <div class="status-bar">
+         <span id="b-status">当前共筛选出 <b>650</b> 条建议（总库 650 条）</span>
+         <button class="ghost" id="b-clear" type="button">清空筛选</button>
+       </div>
+     </section>
+
+     <div class="cards" id="b-list"></div>
+     <div class="load-line" id="b-more"></div>
+   </div><!-- /panel-browse -->
   </main>
 
   <footer>
+    <p>数据来自开源书稿《高性价比人生指南》，排序是工具，不是医嘱。</p>
     <p>数据来自开源书稿《高性价比人生指南》(HowToLiveBetter)，共 <b id="foot-total">0</b> 条条款。
       本页是纯前端单文件：不联网、不调用任何模型、不上传输入；诊断文字由规则拼装，不生成新事实。</p>
     <p>这一个文件就是全部：双击打开即可用，也可以直接把 <b>index.html</b> 发给别人（不需要附带任何其他文件）。</p>
@@ -334,6 +415,8 @@ const MAX_VISIBLE = 6;
 const TOP_N = 3;
 /** 点一次「展开」追加多少条，避免一次渲染几百张卡片。 */
 const EXPAND_STEP = 60;
+/** 全库浏览每批渲染多少条（650 条一次性渲染会卡）。 */
+const BROWSE_PAGE = 30;
 
 /**
  * 性价比纯函数：收益大 + 零成本 = 极高；成本分 ≤2 = 高；收益中 + 零成本 = 高；其余一般。
@@ -526,6 +609,26 @@ function rankItems(items, profile) {
 /** 这条是否与「我」有关：命中领域或命中困惑关键词。 */
 function hasPersonalHit(row) {
   return row.hitDomains.length > 0 || queryHitCount(row) > 0;
+}
+
+/**
+ * 全库浏览的纯过滤函数（页面与测试共用）。
+ * 章节 / 性价比 / 证据等级 三组多选取交集，关键词按标题 + 正文 + 依据做 includes 模糊匹配。
+ * @param {Array} items
+ * @param {{ratios?:Set<string>, evidences?:Set<string>, sections?:Set<number>, q?:string}} f
+ */
+function filterLibrary(items, f) {
+  const q = String((f && f.q) || '').trim().toLowerCase();
+  return items.filter((it) => {
+    if (f.ratios && !f.ratios.has(calcRatio(it.benefit_level, it.cost_money, it.cost_time, it.cost_grit))) return false;
+    if (f.evidences && !f.evidences.has(it.evidence)) return false;
+    if (f.sections && f.sections.size && !f.sections.has(it.section)) return false;
+    if (q) {
+      const hay = (it.title + '\n' + it.body + '\n' + it.gain).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
 }
 
 /** 命中了几个「词条」（用户原话 + 意向同义词），用于精选排序。 */
@@ -739,16 +842,22 @@ const COST_TEXT = {
 const TAG_CLASS = { '防坑红线': 't-红线', '应急动作': 't-应急', '健康行动': 't-健康', '省钱兜底': 't-省钱', '办事清单': 't-办事', '行动建议': 't-行动' };
 
 /**
- * 高亮行显示什么。
- * 行动句若正好是标题的开头（例如标题「先把门槛对一遍：十二条路…」），
- * 直接再显示一遍就成了重复，这时改用标题冒号后面的那半句 —— 仍然是原文子串。
+ * 高亮行显示什么（只做展示层选择，内容全部来自原文，不生成新句子）。
+ * 1) 行动句是标题的前半句（「先把门槛对一遍：十二条路…」）→ 显示冒号后面那半句；
+ * 2) 行动句和标题一模一样（标题本身就是一句话，如「不嚼槟榔」）→ 显示正文首句，
+ *    避免同一句话在卡片上出现两次。
  */
 function actionDisplay(it) {
   const title = it.title || '';
   const act = it.action_text || '';
+  const clip = (s, n) => { const c = [...s]; return c.slice(0, n).join('') + (c.length > n ? '…' : ''); };
   if (act && title.startsWith(act)) {
     const rest = title.slice(act.length).replace(/^[，：、,;；\s]+/, '');
-    if ([...rest].length >= 6) return { text: rest, derived: true };
+    if ([...rest].length >= 6) return { text: clip(rest, 34), derived: true };
+  }
+  if (act === title) {
+    const first = String(it.body || '').split(/[。；！？\n]/)[0].trim();
+    if ([...first].length >= 6) return { text: clip(first, 34), derived: true };
   }
   return { text: act, derived: false };
 }
@@ -770,6 +879,7 @@ const SCENARIOS = [
 ];
 
 const state = {
+  tab: 'calc',         // 'calc' = 智能计算器；'browse' = 全库浏览
   domains: new Set(['健康', '财务']),
   evidence: new Set(['A', 'B', 'C']),
   cost: { money: new Set([0, 1, 2]), time: new Set([0, 1, 2]), grit: new Set([0, 1, 2]) },
@@ -777,6 +887,15 @@ const state = {
   expandCount: 0,      // 0 = 只显示 Top 6；>0 = 已展开多少条其余建议
   profile: null,
   result: null,
+  // —— 全库浏览的筛选状态 ——
+  browse: {
+    q: '',
+    ratios: new Set(RATIO_ORDER),
+    evidences: new Set(['A', 'B', 'C']),
+    sections: new Set(),   // 空集合 = 不限章节
+    limit: BROWSE_PAGE,    // 当前渲染了多少条
+    inited: false,
+  },
 };
 
 function readProfile() {
@@ -869,6 +988,7 @@ function renderStats() {
     '<span><b>' + MAX_VISIBLE + '</b>条上限</span>';
   $('#total').textContent = ITEMS.length;
   $('#foot-total').textContent = ITEMS.length;
+  $('#tab-total').textContent = ITEMS.length;
 }
 
 /* ---------- 结果渲染 ---------- */
@@ -1026,8 +1146,176 @@ function generate() {
   render(true);
 }
 
+/* ============================================================================
+ * 5. Tab 切换 与 全库浏览
+ * ========================================================================== */
+
+/** 章节清单（按原书编号排序）：[[1,'不要早死'], …] */
+const SECTIONS = [...ITEMS.reduce((m, it) => m.set(it.section, it.section_name), new Map()).entries()]
+  .sort((a, b) => a[0] - b[0]);
+
+/** 预算好每条性价比，避免每次筛选都重算。 */
+const RATIO_OF = new Map(ITEMS.map((it) => [it.id,
+  calcRatio(it.benefit_level, it.cost_money, it.cost_time, it.cost_grit)]));
+
+/** 切换 Tab：纯原生 JS，只切 hidden 与 aria-selected。 */
+function switchTab(name) {
+  state.tab = name;
+  for (const t of document.querySelectorAll('.tab')) {
+    t.setAttribute('aria-selected', String(t.dataset.tab === name));
+  }
+  $('#panel-calc').hidden = name !== 'calc';
+  $('#panel-browse').hidden = name !== 'browse';
+  if (name === 'browse' && !state.browse.inited) {   // 第一次切过去才建列表
+    state.browse.inited = true;
+    renderBrowseFilters();
+    renderBrowse();
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ---------- 筛选区 ---------- */
+function renderBrowseFilters() {
+  const b = state.browse;
+
+  const ratioBox = $('#b-ratio');
+  ratioBox.innerHTML = '';
+  RATIO_ORDER.forEach((r) => ratioBox.appendChild(chip(
+    esc(r), b.ratios.has(r), () => {
+      b.ratios.has(r) ? b.ratios.delete(r) : b.ratios.add(r);
+      renderBrowseFilters(); renderBrowse(true);
+    }, 'small')));
+
+  const evBox = $('#b-evidence');
+  evBox.innerHTML = '';
+  ['A', 'B', 'C'].forEach((g) => evBox.appendChild(chip(
+    esc(g) + ' 级', b.evidences.has(g), () => {
+      b.evidences.has(g) ? b.evidences.delete(g) : b.evidences.add(g);
+      renderBrowseFilters(); renderBrowse(true);
+    }, 'small')));
+
+  const secBox = $('#b-section');
+  secBox.innerHTML = '';
+  SECTIONS.forEach(([num, name]) => secBox.appendChild(chip(
+    '<span class="sec-tag">§' + num + '</span> ' + esc(name), b.sections.has(num), () => {
+      b.sections.has(num) ? b.sections.delete(num) : b.sections.add(num);
+      renderBrowseFilters(); renderBrowse(true);
+    }, 'small')));
+
+  $('#b-section-summary').textContent = b.sections.size
+    ? '章节：已选 ' + b.sections.size + ' 节（点击展开修改）'
+    : '章节：全部（34 节）';
+}
+
+/* ---------- 过滤 ---------- */
+function browseFiltered() {
+  // 保持原书顺序（ITEMS 本身就是按节、按条排的），浏览时不做二次排序
+  return filterLibrary(ITEMS, state.browse);
+}
+
+/* ---------- 浏览用的精简卡片 ---------- */
+function browseCardHtml(it, order) {
+  const ratio = RATIO_OF.get(it.id);
+  const r = RATIO_SCORE[ratio];
+  const body = it.body || '';
+  const short = [...body].slice(0, 72).join('') + ([...body].length > 72 ? '…' : '');
+  const full = [];
+  if (it.body) full.push('<p><span class="lab2">正文：</span>' + esc(it.body) + '</p>');
+  if (it.gain && it.gain !== it.body) full.push('<p><span class="lab2">依据 / 收益：</span>' + esc(it.gain) + '</p>');
+  if (it.cost_note) full.push('<p><span class="lab2">成本说明：</span>' + esc(it.cost_note) + '</p>');
+  if (it.note) full.push('<p><span class="lab2">备注：</span>' + esc(it.note) + '</p>');
+  full.push('<p class="src-line"><span class="lab2">原书出处：</span>' + esc(it.source || '书中未标注') + '</p>');
+
+  return '' +
+  '<article class="card r' + r + ' browse">' +
+    '<div class="card-head"><span class="rank">' + order + '</span><h3>' + esc(it.title) + '</h3></div>' +
+    '<p class="action"><span class="action-tag ' + (TAG_CLASS[it.action_tag] || 't-行动') + '">' +
+      esc(it.action_tag) + '</span><span class="action-text">' + esc(actionDisplay(it).text) + '</span></p>' +
+    '<div class="card-meta">' +
+      '<span class="badge ratio-r' + r + '">性价比 ' + ratio + '</span>' +
+      '<span class="badge ev">证据 ' + esc(it.evidence) + '</span>' +
+      '<span class="badge plain">收益 ' + esc(it.benefit_level) + '</span>' +
+      '<span class="ref">第 ' + it.section + ' 节 · 第 ' + it.index_in_section + ' 条 · ' + esc(it.section_name) + '</span>' +
+    '</div>' +
+    '<p class="body-sum">' + esc(short) + '</p>' +
+    '<details class="more"><summary>展开全文</summary>' +
+      '<div class="meter">' + pips('钱', it.cost_money) + pips('时间', it.cost_time) + pips('毅力', it.cost_grit) + '</div>' +
+      '<div class="cost-line">' + esc(COST_TEXT.money[it.cost_money]) + ' · ' + esc(COST_TEXT.time[it.cost_time]) +
+        ' · ' + esc(COST_TEXT.grit[it.cost_grit]) + '</div>' +
+      '<div class="full">' + full.join('') + '</div>' +
+    '</details>' +
+  '</article>';
+}
+
+/* ---------- 列表渲染（分批，不一次性渲染 650 条） ---------- */
+function renderBrowse(reset) {
+  const b = state.browse;
+  if (reset) b.limit = BROWSE_PAGE;      // 筛选条件变了，回到第一批
+
+  const list = browseFiltered();
+  const shown = list.slice(0, b.limit);
+
+  $('#b-status').innerHTML = '当前共筛选出 <b>' + list.length + '</b> 条建议（总库 ' + ITEMS.length + ' 条）';
+
+  const host = $('#b-list');
+  host.innerHTML = shown.length
+    ? shown.map((it, i) => browseCardHtml(it, i + 1)).join('')
+    : '<div class="empty wide"><h3>没有匹配的条款</h3>' +
+      '<p>换个关键词，或点「清空筛选」回到全部 ' + ITEMS.length + ' 条。</p></div>';
+
+  const more = $('#b-more');
+  if (shown.length < list.length) {
+    more.innerHTML = '<button class="ghost" id="b-load" type="button">加载更多（还有 ' +
+      (list.length - shown.length) + ' 条）</button>' +
+      '<span>已显示 ' + shown.length + ' / ' + list.length + ' 条，每批 ' + BROWSE_PAGE + ' 条</span>';
+    $('#b-load').addEventListener('click', () => {
+      b.limit += BROWSE_PAGE;
+      renderBrowse(false);
+    });
+  } else {
+    more.innerHTML = list.length
+      ? '<span>已显示全部 ' + list.length + ' 条</span>'
+      : '';
+  }
+}
+
 /* ---------- 事件绑定 ---------- */
 $('#go').addEventListener('click', generate);
+$('#tab-calc').addEventListener('click', () => switchTab('calc'));
+$('#tab-browse').addEventListener('click', () => switchTab('browse'));
+// Tab 支持左右方向键切换
+document.querySelector('.tabs').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  e.preventDefault();
+  const next = state.tab === 'calc' ? 'browse' : 'calc';
+  switchTab(next);
+  $('#tab-' + next).focus();
+});
+// 点卡片标题也能展开全文
+document.addEventListener('click', (e) => {
+  const h = e.target.closest('.card h3');
+  if (!h) return;
+  const d = h.closest('.card').querySelector('details.more');
+  if (d) d.open = !d.open;
+});
+$('#b-q').addEventListener('input', (e) => { state.browse.q = e.target.value; renderBrowse(true); });
+$('#b-section-all').addEventListener('click', () => {
+  SECTIONS.forEach(([n]) => state.browse.sections.add(n));
+  renderBrowseFilters(); renderBrowse(true);
+});
+$('#b-section-none').addEventListener('click', () => {
+  state.browse.sections.clear();
+  renderBrowseFilters(); renderBrowse(true);
+});
+$('#b-clear').addEventListener('click', () => {
+  const b = state.browse;
+  b.q = ''; $('#b-q').value = '';
+  b.ratios = new Set(RATIO_ORDER);
+  b.evidences = new Set(['A', 'B', 'C']);
+  b.sections.clear();
+  renderBrowseFilters(); renderBrowse(true);
+  $('#b-section-wrap').open = false;
+});
 $('#reset').addEventListener('click', () => {
   $('#age').value = 30; $('#job').value = '在职'; $('#income').value = '中';
   $('#family').value = '单身'; $('#time').value = '正常'; $('#grit').value = '中';
@@ -1051,7 +1339,9 @@ renderStats();
 renderDomainChips();
 renderScenarios();
 renderFilters();
+switchTab('calc');   // 默认停在「智能计算器」，全库浏览第一次切过去时才建列表
 console.info('修改完成，已强制限制为 Top 6 建议');
+console.info('已新增顶部 Tab：智能计算器 / 全库浏览（' + ITEMS.length + ' 条，每批 ' + BROWSE_PAGE + ' 条）');
 generate();          // 打开就有诊断，不用先点一次
 </script>
 </body>

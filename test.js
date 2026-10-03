@@ -20,7 +20,7 @@ const api = new Function(engine + `
   return { ITEMS, calcRatio, scoreItem, rankItems, tokenize, expandParts, partHits,
            RATIO_SCORE, keywordHits, itemInDomain, impliedDomains, hasPersonalHit,
            queryHitCount, stagePenalty, relevance, selectTop, diagnose, detectIntents,
-           buildProfile, MAX_VISIBLE, TOP_N, STOP_GRAMS };
+           buildProfile, MAX_VISIBLE, TOP_N, STOP_GRAMS, filterLibrary, BROWSE_PAGE };
 `)();
 
 let pass = 0, fail = 0;
@@ -193,6 +193,41 @@ ok('同分时性价比档位高者优先', ranked.every((r, i) =>
 ok('分数之和等于理由之和（抽查 50 条）', ranked.slice(0, 50).every((r) =>
   r.reasons.reduce((a, x) => a + x.value, 0) === r.score));
 ok('总分 ≥ 基础分（加分不为负）', ranked.every((r) => r.score >= r.ratioScore));
+
+/* ---------- 9. 全库浏览的筛选（页面与测试共用同一个纯函数） ---------- */
+console.log('\n[9] 全库浏览筛选');
+const ALL = api.filterLibrary(I, {});
+eq('无筛选 = 全库', ALL.length, I.length);
+eq('默认每批 30 条', api.BROWSE_PAGE, 30);
+ok('筛选后仍保持原书顺序', ALL.every((x, i) => i === 0 ||
+  x.section > ALL[i - 1].section || (x.section === ALL[i - 1].section && x.index_in_section > ALL[i - 1].index_in_section)));
+const byRatio = {};
+for (const r of ['极高', '高', '一般']) {
+  const got = api.filterLibrary(I, { ratios: new Set([r]) }).length;
+  const want = I.filter((x) => api.calcRatio(x.benefit_level, x.cost_money, x.cost_time, x.cost_grit) === r).length;
+  byRatio[r] = got; eq('只选性价比「' + r + '」=' + want + ' 条', got, want);
+}
+eq('三档相加 = 全库', byRatio['极高'] + byRatio['高'] + byRatio['一般'], I.length);
+const evA = api.filterLibrary(I, { evidences: new Set(['A']) });
+ok('只选证据 A：全部是 A 且数量对得上', evA.length === I.filter((x) => x.evidence === 'A').length
+  && evA.every((x) => x.evidence === 'A'), evA.length);
+const sec15 = api.filterLibrary(I, { sections: new Set([15]) });
+ok('按章节筛选：只出该节', sec15.length === I.filter((x) => x.section === 15).length
+  && sec15.every((x) => x.section === 15), sec15.length);
+const secMulti = api.filterLibrary(I, { sections: new Set([1, 15]) });
+eq('多章节 = 两节之和', secMulti.length, api.filterLibrary(I, { sections: new Set([1]) }).length + sec15.length);
+eq('章节空集合 = 不限章节', api.filterLibrary(I, { sections: new Set() }).length, I.length);
+const kw = api.filterLibrary(I, { q: '押金' });
+ok('关键词搜索命中且都在标题/正文/依据里', kw.length > 0 && kw.every((x) =>
+  (x.title + x.body + x.gain).includes('押金')), kw.length);
+eq('组合筛选取交集（押金 + A）', api.filterLibrary(I, { q: '押金', evidences: new Set(['A']) }).length,
+  kw.filter((x) => x.evidence === 'A').length);
+eq('搜不到时返回空数组', api.filterLibrary(I, { q: 'zzz这个词不存在zzz' }).length, 0);
+ok('英文搜索大小写不敏感', api.filterLibrary(I, { q: 'aed' }).length === api.filterLibrary(I, { q: 'AED' }).length);
+const kw2 = api.filterLibrary(I, { q: '社保' });
+ok('另一组关键词同样只出命中项', kw2.length > 0 && kw2.every((x) =>
+  (x.title + x.body + x.gain).includes('社保')), kw2.length);
+ok('关键词不匹配则完全不出现', api.filterLibrary(I, { q: '社保' }).length < I.length);
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} 通过 / ${fail} 失败\n`);
 process.exit(fail ? 1 : 0);
