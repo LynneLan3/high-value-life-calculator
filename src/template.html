@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>高性价比人生计算器</title>
+<meta name="description" content="输入现状 → 先诊断 → 精选 Top 3 行动建议。基于《高性价比人生指南》650 条条款的成本收益数据做规则排序，纯前端、离线可用、不联网、不调用模型。">
+<meta name="color-scheme" content="light">
+<style>
+/* ============================================================
+   高性价比人生计算器 —— 单文件、零依赖、离线可用
+   形态：诊断 → 精选 Top 3 → 最多 6 条 → 其余折叠
+   视觉：纸面 / 度量衡。暖纸底 + 墨色字 + 朱红强调色。
+   ============================================================ */
+:root{
+  --paper:#f6f3ec;
+  --paper-2:#efeae0;
+  --card:#fffdf8;
+  --ink:#1b1916;
+  --ink-2:#544e46;
+  --ink-3:#8a8276;
+  --line:#e2dbcd;
+  --line-2:#d3cabb;
+  --accent:#b8452c;
+  --accent-soft:#f8e9e4;
+  --green:#17704a;
+  --green-soft:#e2f0e8;
+  --blue:#1d5aa0;
+  --blue-soft:#e4ecf7;
+  --amber:#9a6212;
+  --amber-soft:#fbeed6;
+  --gray:#6d675e;
+  --gray-soft:#ece8e0;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(27,25,22,.05), 0 8px 22px -14px rgba(27,25,22,.35);
+  --shadow-lift:0 2px 4px rgba(27,25,22,.06), 0 16px 34px -18px rgba(27,25,22,.45);
+  /* 只用系统自带字体：Mac 走苹方/宋体，Windows 走微软雅黑/宋体，无需联网下载 */
+  --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Songti SC","SimSun","宋体","Source Han Serif SC","Noto Serif CJK SC",Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono","Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;font-family:var(--sans);color:var(--ink);background-color:var(--paper);
+  background-image:
+    repeating-linear-gradient(0deg,rgba(27,25,22,.028) 0 1px,transparent 1px 28px),
+    radial-gradient(120% 60% at 50% -10%,#fffdf8 0%,rgba(255,253,248,0) 60%);
+  line-height:1.62;font-size:16px;font-feature-settings:"tnum" 1,"lnum" 1;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:940px;margin:0 auto;padding:0 18px 80px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:2px}
+h1,h2,h3{margin:0;font-weight:700;line-height:1.25}
+
+/* ---------- 页头 ---------- */
+header{padding:40px 0 16px}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);font-weight:700}
+.kicker::before{content:"";width:26px;height:2px;background:var(--accent);display:block}
+h1{font-family:var(--serif);font-size:clamp(30px,7vw,46px);letter-spacing:-.01em;margin:12px 0 6px}
+.sub{color:var(--ink-2);font-size:15px;max-width:60ch;margin:0}
+.rule{height:0;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line);margin:18px 0 0}
+.stat-strip{display:flex;flex-wrap:wrap;gap:18px;padding:12px 0 0;font-size:12.5px;color:var(--ink-3)}
+.stat-strip b{display:block;font-family:var(--mono);font-size:16px;color:var(--ink);font-weight:600}
+
+/* ---------- 面板 / 表单 ---------- */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin-top:20px}
+.panel-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.panel-head h2{font-family:var(--serif);font-size:19px}
+.hint{font-size:12.5px;color:var(--ink-3)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 18px;margin-top:14px}
+@media (max-width:820px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.grid{grid-template-columns:minmax(0,1fr)}}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field > label{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.field .tip{font-size:11.5px;color:var(--ink-3);font-weight:400}
+select,input[type=number],input[type=text]{
+  appearance:none;width:100%;font:inherit;font-size:15px;color:var(--ink);background:#fff;
+  border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;min-height:44px}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;
+  background-repeat:no-repeat;padding-right:36px}
+input:focus,select:focus{outline:2px solid rgba(184,69,44,.35);outline-offset:1px;border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:13.5px;cursor:pointer;user-select:none;border:1px solid var(--line-2);
+  background:#fff;color:var(--ink-2);border-radius:999px;padding:8px 14px;min-height:38px;
+  transition:background .18s,border-color .18s,color .18s,transform .12s}
+.chip:hover{transform:translateY(-1px);border-color:var(--ink-3)}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fffdf8}
+.chip.small{font-size:12.5px;padding:6px 11px;min-height:32px}
+.chip .auto{font-size:11px;opacity:.75;margin-left:4px}
+.chip.scene{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border-radius:12px;
+  padding:9px 14px;text-align:left;line-height:1.35}
+.chip.scene[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.scene .s-hint{font-size:11.5px;opacity:.8}
+.section-label{display:flex;align-items:center;gap:10px;margin:22px 0 0;font-size:12.5px;
+  font-weight:700;color:var(--ink-2)}
+.section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+.filter-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.filter-row .lab{font-size:12px;color:var(--ink-3);min-width:74px;font-weight:600}
+details.filters{margin-top:18px;border-top:1px dashed var(--line);padding-top:14px}
+details.filters > summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-2);list-style:none}
+details.filters > summary::-webkit-details-marker{display:none}
+details.filters > summary::after{content:" ▾";color:var(--ink-3)}
+details.filters[open] > summary::after{content:" ▴"}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:22px}
+button.primary{font:inherit;font-size:15.5px;font-weight:700;cursor:pointer;background:var(--ink);
+  color:#fffdf8;border:1px solid var(--ink);border-radius:11px;padding:13px 26px;min-height:48px;
+  box-shadow:0 6px 16px -10px rgba(27,25,22,.9);transition:transform .12s,background .2s}
+button.primary:hover{background:#000;transform:translateY(-1px)}
+button.ghost{font:inherit;font-size:14px;cursor:pointer;background:transparent;color:var(--ink-2);
+  border:1px solid var(--line-2);border-radius:11px;padding:11px 18px;min-height:44px}
+button.ghost:hover{border-color:var(--ink-3);color:var(--ink)}
+.actions .note{font-size:12.5px;color:var(--ink-3)}
+
+/* ---------- 诊断 ---------- */
+.diagnosis{margin-top:26px;background:var(--card);border:1px solid var(--line-2);
+  border-left:4px solid var(--accent);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+.diagnosis h2{font-family:var(--serif);font-size:19px;display:flex;align-items:center;gap:8px}
+.diagnosis h2 .tagline{font-family:var(--sans);font-size:11.5px;font-weight:600;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.diagnosis .coords{font-size:12.5px;color:var(--ink-3);margin:8px 0 0}
+.diagnosis p.dl{display:flex;gap:10px;margin:12px 0 0;font-size:15px;line-height:1.6}
+.diagnosis p.dl .k{flex:none;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+  border-radius:6px;padding:3px 8px;height:fit-content;margin-top:2px}
+.diagnosis .rx{margin:16px 0 0;padding:12px 14px;background:var(--paper-2);border-radius:10px}
+.diagnosis .rx .rx-title{font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:8px}
+.diagnosis ol{margin:0;padding:0;list-style:none;counter-reset:rx}
+.diagnosis ol li{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:14.5px}
+.diagnosis ol li+li{border-top:1px solid var(--line)}
+.diagnosis ol li .n{font-family:var(--mono);font-size:12px;color:var(--ink-3);flex:none;margin-top:3px}
+.diagnosis ol li .txt{flex:1;min-width:0}
+.diagnosis ol li .ref{flex:none;font-size:11.5px;color:var(--ink-3);white-space:nowrap;margin-top:3px}
+.rules{margin:12px 0 0;font-size:12px;color:var(--ink-3)}
+.rules b{color:var(--ink-2)}
+
+/* ---------- 结果 ---------- */
+.results-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:30px 0 0}
+.results-head h2{font-family:var(--serif);font-size:20px}
+.results-head .count{font-family:var(--mono);font-size:12.5px;color:var(--ink-3)}
+.results-head .blurb{font-size:12.5px;color:var(--ink-3);width:100%}
+.cards{display:grid;gap:12px;margin-top:12px}
+.card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:15px 17px 13px;overflow:hidden;
+  animation:rise .38s cubic-bezier(.2,.7,.3,1) both}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gray)}
+.card.r3::before{background:var(--green)} .card.r2::before{background:var(--blue)}
+.card.hero{border-color:var(--line-2);box-shadow:var(--shadow-lift)}
+.card:hover{box-shadow:var(--shadow-lift)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.card{animation:none}}
+.card-head{display:flex;gap:10px;align-items:flex-start}
+.rank{font-family:var(--mono);font-size:12px;color:#fffdf8;background:var(--ink-2);border-radius:7px;
+  padding:2px 8px;flex:none;margin-top:3px}
+.card.hero .rank{background:var(--accent);font-size:13px}
+.card h3{font-family:var(--serif);font-size:17px;flex:1;min-width:0}
+/* 行动高亮行：卡片里最显眼的一行 */
+.action{display:flex;gap:9px;align-items:flex-start;margin:11px 0 0;padding:9px 12px;
+  background:var(--paper-2);border-radius:10px;border-left:3px solid var(--ink-3)}
+.action .action-tag{flex:none;font-size:11.5px;font-weight:700;border-radius:6px;padding:2px 8px;margin-top:2px}
+.action .action-text{font-size:15px;font-weight:700;color:var(--ink);line-height:1.5}
+.t-红线{background:#fbe3e0;color:#a32b1c}
+.t-应急{background:#fbe3e0;color:#a32b1c}
+.t-健康{background:var(--green-soft);color:var(--green)}
+.t-省钱{background:var(--blue-soft);color:var(--blue)}
+.t-办事{background:var(--amber-soft);color:var(--amber)}
+.t-行动{background:var(--accent-soft);color:var(--accent)}
+.card-meta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:11px}
+.badge{font-size:11.5px;font-weight:700;border-radius:6px;padding:3px 8px;border:1px solid transparent;white-space:nowrap}
+.badge.ratio-r3{background:var(--green-soft);color:var(--green);border-color:#c6e2d3}
+.badge.ratio-r2{background:var(--blue-soft);color:var(--blue);border-color:#c9d9ef}
+.badge.ratio-r1{background:var(--gray-soft);color:var(--gray);border-color:#ded8cd}
+.badge.ev{background:#fff;color:var(--ink-2);border-color:var(--line-2);font-family:var(--mono)}
+.badge.hit{background:#fff;color:var(--accent);border-color:#e8cfc7}
+.ref{font-size:12px;color:var(--ink-3);margin-left:auto;white-space:nowrap}
+details.more{margin-top:10px;border-top:1px dashed var(--line);padding-top:9px}
+details.more > summary{cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:700;list-style:none;display:inline-flex;gap:5px}
+details.more > summary::-webkit-details-marker{display:none}
+details.more > summary::after{content:"▾";font-size:10px;transition:transform .2s}
+details.more[open] > summary::after{transform:rotate(180deg)}
+.meter{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px}
+.gauge{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3)}
+.gauge .gname{font-weight:700;color:var(--ink-2)}
+.pips{display:inline-flex;gap:3px}
+.pip{width:7px;height:7px;border-radius:50%;background:var(--line-2)}
+.pip.on{background:var(--ink-2)}
+.gauge.zero .pip.on{background:var(--green)}
+.gauge.zero .gname{color:var(--green)}
+.cost-line{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);margin-top:8px}
+.full{font-size:14px;color:var(--ink-2);margin:8px 0 0}
+.full p{margin:0 0 8px}
+.full p:last-child{margin-bottom:0}
+.full .lab2{font-weight:700;color:var(--ink)}
+.src-line{word-break:break-word}
+.why{margin-top:10px;border-radius:10px;padding:0}
+.why[open]{background:var(--paper-2);padding:9px 12px}
+.why summary{font-size:12.5px;color:var(--ink-3);font-weight:700;cursor:pointer;list-style:none;display:inline-flex}
+.why summary::-webkit-details-marker{display:none}
+.why summary::after{content:" ▾";font-size:10px}
+.why .why-head{font-size:12px;font-weight:700;color:var(--ink-2);display:flex;justify-content:space-between;gap:10px;margin-top:7px}
+.why .why-head .total{font-family:var(--mono);color:var(--accent)}
+.why ul{margin:7px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.why li{font-size:11.5px;color:var(--ink-2);background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.why li b{font-family:var(--mono);color:var(--ink)}
+.empty{background:var(--card);border:1px dashed var(--line-2);border-radius:var(--radius);
+  padding:24px 20px;color:var(--ink-2);font-size:14.5px}
+.empty h3{font-family:var(--serif);font-size:17px;margin-bottom:6px}
+.disclaimer{margin-top:26px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--paper-2);font-size:12px;color:var(--ink-3);line-height:1.6}
+footer{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+footer p{margin:0 0 6px}
+.build-note{margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--green);
+  background:var(--green-soft);border:1px solid #c6e2d3;border-radius:8px;padding:7px 11px;display:inline-block}
+@media (max-width:560px){
+  header{padding-top:26px}
+  .panel,.diagnosis{padding:16px}
+  .card{padding:14px 14px 12px}
+  .filter-row .lab{min-width:100%}
+  .ref{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="kicker">HowToLiveBetter · 离线计算器</span>
+    <h1>高性价比人生计算器</h1>
+    <p class="sub">先诊断，再精选。系统不会把 650 条倒给你——默认只给 3 条精选 + 最多 3 条备选，其余折叠。</p>
+    <div class="rule"></div>
+    <div class="stat-strip" id="stats"></div>
+  </header>
+
+  <main>
+    <!-- ================= 表单区 ================= -->
+    <section class="panel" aria-labelledby="form-title">
+      <div class="panel-head">
+        <h2 id="form-title">你的现状</h2>
+        <span class="hint">只影响排序，不上传任何数据</span>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="age">年龄</label>
+          <input id="age" type="number" inputmode="numeric" min="12" max="100" step="1" value="30">
+        </div>
+        <div class="field">
+          <label for="job">职业状态</label>
+          <select id="job"><option>在职</option><option>待业</option><option>学生</option>
+            <option>自由职业</option><option>退休</option></select>
+        </div>
+        <div class="field">
+          <label for="income">收入区间 <span class="tip">低＝月入勉强覆盖支出</span></label>
+          <select id="income"><option>低</option><option selected>中</option><option>高</option></select>
+        </div>
+        <div class="field">
+          <label for="family">家庭状况</label>
+          <select id="family"><option>单身</option><option>已婚无孩</option><option>已婚有孩</option><option>其他</option></select>
+        </div>
+        <div class="field">
+          <label for="time">可支配时间 <span class="tip">紧张＝几乎没有整块时间</span></label>
+          <select id="time"><option>充裕</option><option selected>正常</option><option>紧张</option></select>
+        </div>
+        <div class="field">
+          <label for="grit">毅力自评 <span class="tip">低＝很难坚持靠意志力的事</span></label>
+          <select id="grit"><option>低</option><option selected>中</option><option>高</option></select>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label for="query">一句话困惑 <span class="tip">可选；写清楚在纠结什么，精选会更准</span></label>
+          <input id="query" type="text" placeholder="例如：28 岁想辞职考研，父母催婚，存款不多">
+        </div>
+      </div>
+
+      <div class="section-label">关心领域（可多选）</div>
+      <div class="chips" id="domains" role="group" aria-label="关心领域"></div>
+      <p class="hint" id="domain-note" style="margin:8px 0 0"></p>
+
+      <div class="section-label">常见场景（一键带入表单）</div>
+      <div class="chips" id="scenarios" role="group" aria-label="常见场景"></div>
+
+      <details class="filters">
+        <summary>筛选（可选）：证据等级 / 成本档位</summary>
+        <div class="filter-row"><span class="lab">证据等级</span><div class="chips" id="f-evidence" role="group" aria-label="证据等级筛选"></div></div>
+        <div class="filter-row"><span class="lab">花的钱</span><div class="chips" id="f-money" role="group" aria-label="金钱成本筛选"></div></div>
+        <div class="filter-row"><span class="lab">花的时间</span><div class="chips" id="f-time" role="group" aria-label="时间成本筛选"></div></div>
+        <div class="filter-row"><span class="lab">花的毅力</span><div class="chips" id="f-grit" role="group" aria-label="毅力成本筛选"></div></div>
+      </details>
+
+      <div class="actions">
+        <button class="primary" id="go" type="button">生成建议</button>
+        <button class="ghost" id="reset" type="button">重置</button>
+        <span class="note" id="form-note">共 <b id="total">0</b> 条条款参与计算</span>
+      </div>
+    </section>
+
+    <!-- ================= 结果区 ================= -->
+    <section id="results" aria-live="polite">
+      <div class="empty">
+        <h3>还没有诊断结果</h3>
+        <p>填好上面的现状（或点一个常见场景），按「生成建议」。系统会先给一段现状诊断，再给 3 条精选行动，其余折叠。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>数据来自开源书稿《高性价比人生指南》(HowToLiveBetter)，共 <b id="foot-total">0</b> 条条款。
+      本页是纯前端单文件：不联网、不调用任何模型、不上传输入；诊断文字由规则拼装，不生成新事实。</p>
+    <p>这一个文件就是全部：双击打开即可用，也可以直接把 <b>index.html</b> 发给别人（不需要附带任何其他文件）。</p>
+    <p class="build-note" id="build-note">修改完成，已强制限制为 Top 6 建议</p>
+  </footer>
+</div>
+
+<script>
+/* ============================================================================
+ * 数据区：由 parse.js 从 book/NN-*.md 解析后内联注入（见项目根目录 parse.js）。
+ * ========================================================================== */
+/* __DATA_BEGIN__ */
+const ITEMS = [];   // 占位，构建时被替换为完整数据集
+/* __DATA_END__ */
+
+/* ============================================================================
+ * 1. 性价比：成本档位 → 档位分 → 性价比档位
+ * ========================================================================== */
+
+/** 性价比档位 → 数值分（极高=3，高=2，一般=1）。 */
+const RATIO_SCORE = { '极高': 3, '高': 2, '一般': 1 };
+const RATIO_ORDER = ['极高', '高', '一般'];
+
+/** 一屏最多给几条（硬上限，改这里就能改口径）。 */
+const MAX_VISIBLE = 6;
+/** 其中前几条是「精选」（只从与你的领域/困惑有命中的条款里挑）。 */
+const TOP_N = 3;
+/** 点一次「展开」追加多少条，避免一次渲染几百张卡片。 */
+const EXPAND_STEP = 60;
+
+/**
+ * 性价比纯函数：收益大 + 零成本 = 极高；成本分 ≤2 = 高；收益中 + 零成本 = 高；其余一般。
+ * @returns {'极高'|'高'|'一般'}
+ */
+function calcRatio(benefitLevel, costMoney, costTime, costGrit) {
+  const costScore = costMoney + costTime + costGrit;
+  if (benefitLevel === '大' && costScore === 0) return '极高';
+  if (benefitLevel === '大' && costScore <= 2) return '高';
+  if (benefitLevel === '中' && costScore === 0) return '高';
+  return '一般';
+}
+
+/* ============================================================================
+ * 2. 领域关键词：关心领域 → 章节号
+ * ========================================================================== */
+const DOMAIN_SECTIONS = {
+  '健康': [1, 2, 3, 16, 22, 24, 28, 29, 33, 34],
+  '财务': [5, 6, 7, 10, 12, 15, 23, 25],
+  '法律': [8, 9, 11, 15, 19, 25],
+  '婚育': [10, 18, 20, 27, 30],
+  '职业': [12, 19, 23, 26, 31],
+  '合规': [9, 11, 14, 19, 26],
+  '急救': [1, 13, 34],
+  '社保': [7, 17, 19, 24, 25],
+  '其他': [],   // 不参与加权：给「我关心的是别的」留一个出口
+};
+const ALL_DOMAINS = Object.keys(DOMAIN_SECTIONS);
+const DOMAIN_WORDS = {
+  '健康': ['健康', '慢性病', '外形', '放松', '看病', '早死', '慢慢死', '精力', '打击', '残疾', '常备药'],
+  '财务': ['钱', '理财', '创业', '生意', '租房', '买房', '技能', '走了以后', '养老'],
+  '法律': ['法律', '红线', '搭进去', '工伤', '租房', '买房', '走了以后', '合同'],
+  '婚育': ['恋爱', '结婚', '养孩子', '孩子', '怀孕', '生产', '上学'],
+  '职业': ['在职', '离职', '工伤', '技能', '创业', '网站', '平台', '十八岁', '职业'],
+  '合规': ['红线', '账号', '信息安全', '备案', '资质', '合规', '工伤'],
+  '急救': ['紧急', '急救', '常备药', '不要早死'],
+  '社保': ['社保', '医保', '养老', '老人', '工伤', '看病', '没钱'],
+  '其他': [],
+};
+
+function itemInDomain(item, domain) {
+  if ((DOMAIN_SECTIONS[domain] || []).includes(item.section)) return true;
+  const name = item.section_name || '';
+  return (DOMAIN_WORDS[domain] || []).some((w) => name.includes(w));
+}
+
+/** 由职业 / 家庭 / 年龄推导隐含领域，与手选领域同权重（+3）。 */
+function impliedDomains(p) {
+  const out = new Set();
+  if (p.job === '学生' || p.job === '在职') out.add('职业');
+  if (p.job === '待业') { out.add('社保'); out.add('财务'); }
+  if (p.job === '自由职业') { out.add('合规'); out.add('财务'); }
+  if (p.job === '退休') { out.add('社保'); out.add('健康'); }
+  if (p.family === '已婚有孩' || p.family === '已婚无孩') out.add('婚育');
+  if (p.age && p.age < 25) out.add('职业');
+  if (p.age && p.age >= 60) { out.add('社保'); out.add('健康'); }
+  return ALL_DOMAINS.filter((d) => out.has(d));
+}
+
+/* ============================================================================
+ * 3. 匹配引擎：规则加权打分
+ * ========================================================================== */
+
+/**
+ * 极简分词：按空格和标点切分；中文词再补二字切片（「不退押金」→「押金」）。
+ * 二字切片会带来「不多」「岁想」这类噪声词，用停用表滤掉，
+ * 否则「存款不多」会命中「收益并不多」这种完全不相干的条款。
+ */
+const STOP_GRAMS = new Set(['不多', '不少', '不了', '不是', '不能', '不会', '没有', '什么', '怎么', '怎样', '这样', '那样',
+  '可以', '需要', '一个', '我们', '他们', '你们', '自己', '别人', '这个', '那个', '就是', '还是', '但是', '因为', '所以',
+  '如果', '现在', '已经', '可能', '应该', '一定', '非常', '特别', '时候', '时间', '问题', '事情', '东西', '地方', '一样',
+  '不同', '多少', '几个', '很多', '太多', '大多', '不太', '并不', '其实', '真的', '都是', '也是', '还有', '有点', '比较',
+  '更加', '最好', '一下', '一些', '以及', '或者', '而且', '然后', '另外', '除了', '关于', '对于', '由于', '为了', '以后',
+  '以前', '今天', '明天', '今年', '去年', '最近', '总是', '一直', '从来', '根本', '到底', '难道', '何况', '甚至']);
+
+const PUNCT_RE = /[\s，。、！？；：“”‘’（）《》【】〈〉·,.!?;:'"()\[\]{}\/\\|+=~`@#$%^&*_—－-]+/;
+
+/**
+ * 把用户输入切成「词条」：一个词条 = 用户写下的一个词组（按标点切开）。
+ * 每个词条自带自己的二字变体，命中任意变体就算这个词条命中 ——
+ * 这样「想辞职考研」不会因为切出 4 个二字词而被算成 4 次命中。
+ */
+function expandParts(text) {
+  return String(text || '').toLowerCase().split(PUNCT_RE).filter(Boolean).map((part) => {
+    const vars = new Set([part]);
+    if (part.length >= 3 && /[\u4e00-\u9fa5]/.test(part)) {
+      for (let i = 0; i + 2 <= part.length; i++) {
+        const g = part.slice(i, i + 2);
+        if (!STOP_GRAMS.has(g) && /^[\u4e00-\u9fa5]{2}$/.test(g)) vars.add(g);
+      }
+    }
+    return { key: part, vars: [...vars] };
+  });
+}
+
+/** 命中了哪几个词条（用于精选排序与展示）。 */
+function partHits(item, parts) {
+  if (!parts || !parts.length) return [];
+  const hay = [item.title, item.body, item.gain].join('\n').toLowerCase();
+  return parts.filter((pt) => pt.vars.some((v) => hay.includes(v))).map((pt) => pt.key);
+}
+
+function tokenize(text) {
+  const PUNCT = PUNCT_RE;
+  const tokens = new Set();
+  for (const part of String(text || '').toLowerCase().split(PUNCT)) {
+    if (!part) continue;
+    if (!STOP_GRAMS.has(part)) tokens.add(part);
+    if (part.length >= 3 && /[\u4e00-\u9fa5]/.test(part)) {
+      for (let i = 0; i + 2 <= part.length; i++) {
+        const gram = part.slice(i, i + 2);
+        if (!STOP_GRAMS.has(gram) && /^[\u4e00-\u9fa5]{2}$/.test(gram)) tokens.add(gram);
+      }
+    }
+  }
+  return [...tokens].filter((t) => t.length >= 2 || /^[a-z0-9]+$/.test(t));
+}
+
+/**
+ * 命中哪些词。检索范围 = 标题 + 正文 + 依据，不含「备注」
+ * （备注常写延伸话题，算进来会把不相干的条款顶上来）。
+ */
+function keywordHits(item, tokens) {
+  if (!tokens.length) return [];
+  const hay = [item.title, item.body, item.gain].join('\n').toLowerCase();
+  return tokens.filter((t) => hay.includes(t));
+}
+
+/**
+ * 加权总分。
+ *   基础分 = 性价比档位分（极高 3 / 高 2 / 一般 1）
+ *   收入低：cost_money 0 → +2，1 → +1
+ *   时间紧：cost_time  0 → +2，1 → +1
+ *   毅力低：cost_grit  0 → +1
+ *   领域命中（手选 ∪ 隐含）：+3
+ *   困惑命中：每词 +1，上限 +3
+ *   证据等级：A +1，B +0.5，C +0
+ */
+function scoreItem(item, profile) {
+  const ratio = calcRatio(item.benefit_level, item.cost_money, item.cost_time, item.cost_grit);
+  const ratioScore = RATIO_SCORE[ratio];
+  const reasons = [];
+  let score = ratioScore;
+  reasons.push({ label: '性价比 ' + ratio, value: ratioScore });
+
+  if (profile.income === '低') {
+    if (item.cost_money === 0) { score += 2; reasons.push({ label: '低收入 · 不花钱', value: 2 }); }
+    else if (item.cost_money === 1) { score += 1; reasons.push({ label: '低收入 · 少花钱', value: 1 }); }
+  }
+  if (profile.timeTight) {
+    if (item.cost_time === 0) { score += 2; reasons.push({ label: '时间紧 · 不花时间', value: 2 }); }
+    else if (item.cost_time === 1) { score += 1; reasons.push({ label: '时间紧 · 花一点时间', value: 1 }); }
+  }
+  if (profile.gritLow && item.cost_grit === 0) {
+    score += 1; reasons.push({ label: '毅力低 · 不需毅力', value: 1 });
+  }
+
+  const hitDomains = profile.domains.filter((d) => itemInDomain(item, d));
+  if (hitDomains.length) {
+    score += 3;                                   // 命中多个领域也只加一次
+    reasons.push({ label: '命中领域 · ' + hitDomains.join('/'), value: 3 });
+  }
+
+  const hits = keywordHits(item, profile.tokens);
+  if (hits.length) {
+    const gain = Math.min(3, hits.length);
+    score += gain;
+    reasons.push({ label: '困惑关键词 · ' + hits.slice(0, 3).join('/'), value: gain });
+  }
+
+  if (item.evidence === 'A') { score += 1; reasons.push({ label: '证据等级 A', value: 1 }); }
+  else if (item.evidence === 'B') { score += 0.5; reasons.push({ label: '证据等级 B', value: 0.5 }); }
+
+  const partHitList = partHits(item, profile.parts);
+  return { score, ratio, ratioScore, reasons, hits, hitDomains, partHits: partHitList };
+}
+
+/** 排序：总分降序 → 同分时性价比档位高者优先 → 证据等级高者优先。 */
+function rankItems(items, profile) {
+  return items
+    .map((item, i) => Object.assign({ __i: i }, scoreItem(item, profile), { item }))
+    .sort((a, b) =>
+      b.score - a.score ||
+      b.ratioScore - a.ratioScore ||
+      (a.item.evidence < b.item.evidence ? -1 : a.item.evidence > b.item.evidence ? 1 : 0) ||
+      a.__i - b.__i
+    );
+}
+
+/** 这条是否与「我」有关：命中领域或命中困惑关键词。 */
+function hasPersonalHit(row) {
+  return row.hitDomains.length > 0 || queryHitCount(row) > 0;
+}
+
+/** 命中了几个「词条」（用户原话 + 意向同义词），用于精选排序。 */
+function queryHitCount(row) {
+  return row.partHits ? row.partHits.length : 0;
+}
+
+/**
+ * 阶段一致性降权（只影响精选顺序，不改加权总分、不删除条目）：
+ * 自称「在职」、又没提失业的人，被推「失业金怎么领」会觉得系统没读题；
+ * 这类条款降 1 个相关性位次，仍然完整保留在备选和「其余」里。
+ */
+function stagePenalty(row, p) {
+  if (!p || !row || !row.item) return 0;
+  const text = row.item.title + row.item.body;
+  const saidJobless = /失业|被裁|裁员|找不到工作|没工作|待业|下岗/.test(p.query);
+  if (p.job === '在职' && !saidJobless && /失业金|失业保险金|失业登记|领取失业/.test(text)) return 1;
+  if (p.job !== '退休' && p.age && p.age < 55 && /办理退休|退休金申领/.test(row.item.title)) return 1;
+  return 0;
+}
+
+/** 精选排序用的相关性：命中的词条数 − 阶段不一致降权。 */
+function relevance(row, p) {
+  return queryHitCount(row) - stagePenalty(row, p);
+}
+
+/**
+ * 精选 + 截断：
+ *   1) 精选 Top N 只从「与我有关」的条款里挑；排序时**先看命中几个困惑关键词**，
+ *      再看加权总分 —— 否则泛泛命中一个领域的大类条款会把真正对症的条款挤掉；
+ *   2) 备选从剩余条款里按总分补足，总数不超过 limit（默认 6）；
+ *   3) 其余进 hidden，由「展开查看其他相关建议」按钮再渲染。
+ * @returns {{top:Array, rest:Array, visible:Array, hidden:Array}}
+ */
+function selectTop(ranked, profile, topN, limit) {
+  const p = profile || null;
+  const n = topN || TOP_N;
+  const cap = limit || MAX_VISIBLE;
+  const personal = ranked.filter(hasPersonalHit);
+  const byQuery = personal.filter((r) => relevance(r, p) > 0)
+    .sort((a, b) => relevance(b, p) - relevance(a, p) || b.score - a.score || b.ratioScore - a.ratioScore);
+  const byDomain = personal.filter((r) => relevance(r, p) <= 0);   // ranked 本身已按总分排好
+  const ordered = byQuery.concat(byDomain);
+  const pool = ordered.length >= n ? ordered : ranked;
+  const top = pool.slice(0, n);
+  const used = new Set(top.map((r) => r.item.id));
+  const rest = ranked.filter((r) => !used.has(r.item.id)).slice(0, Math.max(0, cap - top.length));
+  const visible = top.concat(rest);
+  return { top, rest, visible, hidden: ranked.slice(visible.length) };
+}
+
+/* ---------------------------------------------------------------------------
+ * 现状诊断：纯规则拼装（没有模型）。矛盾与策略来自下面的模板表，
+ * 触发规则会显示在页面上，方便核对它是怎么得出结论的。
+ * ------------------------------------------------------------------------- */
+const INTENTS = [
+  { id: '考研', focus: '你把学历/考试当成一个选项，但要先算清脱产期间的现金流与社保断档', keys: ['考研', '读研', '留学', '专升本', '学历', '研究生', '考公', '考编'], label: '学历投资',
+    conflict: '想用学历提升职业天花板，但要先算清脱产期间的现金流与社保断档',
+    strategy: '先夯实财务与社保底线，再决定是否为学历投入存款和时间' },
+  { id: '辞职', focus: '你在考虑换轨：先用低成本方式试探，别一次性把现金流和社保押上', keys: ['辞职', '裸辞', '跳槽', '换工作', '离职', '转行', '职业'], label: '职业换轨',
+    conflict: '当前这份工作已经不划算，但换轨会带来现金流和社保的断档风险',
+    strategy: '尽量在职准备、把社保和现金流接住，再决定离职时点' },
+  { id: '失业', focus: '你在关注收入中断的兜底：先把申领资格和时限查清楚', keys: ['失业', '被裁', '裁员', '找不到工作', '待业', '没工作', '社保'], label: '收入中断',
+    conflict: '收入中断，现金流和社保都在倒计时，任何要花钱的选项都被放大',
+    strategy: '先把失业金申领、社保接续和求职底线办妥，再谈长期方向' },
+  { id: '婚育', focus: '你在关注婚育决策：先把钱、时间和法律这三笔账摆到台面上', keys: ['催婚', '结婚', '彩礼', '相亲', '婚礼', '离婚', '婚育'], label: '婚育压力',
+    conflict: '婚育决策被外部压力推着走，而钱、时间和法律这三笔账还没算清',
+    strategy: '先把婚育的钱、时间和法律账算清，再回应外部压力' },
+  { id: '生育', focus: '你在关注生育安排：先走保险和证件这些确定的事', keys: ['怀孕', '备孕', '生孩子', '生育', '产检', '月子'], label: '生育安排',
+    conflict: '生育会同时带来医疗支出和收入中断两重压力',
+    strategy: '先走生育保险、产检和证件流程这些确定的事，再谈其他安排' },
+  { id: '健康', focus: '你把健康列为关注点，但还没说具体症状——先做零成本的预防类条款', keys: ['生病', '住院', '慢性病', '体检', '失眠', '焦虑', '抑郁', '很累', '疼痛', '手术', '健康', '急救'],
+    label: '健康风险',
+    conflict: '身心状态已经在下滑，会放大其他所有决策的成本',
+    strategy: '先用零成本的睡眠、运动、正规就医三件事回血，别在偏方和拖延上花钱' },
+  { id: '住房', focus: '你在关注住的问题：先守住押金、合同和产权这几道底线', keys: ['买房', '租房', '押金', '房东', '房贷', '中介'], label: '住的问题',
+    conflict: '住的问题同时压着现金流和合同风险两条线',
+    strategy: '先守住押金、合同和产权这几道底线，再谈买卖决策' },
+  { id: '止血', focus: '你在关注钱的安全：先堵住高成本负债和骗局，再谈增值', keys: ['负债', '欠款', '网贷', '信用卡', '还不上', '被骗', '诈骗', '赔钱', '财务'], label: '现金流止血',
+    conflict: '现金流已经被高成本负债或骗局侵蚀，越拖越贵',
+    strategy: '先止损、留证、走正规渠道，再谈还款和投资安排' },
+  { id: '创业', focus: '你在关注创业/副业：先用最小成本验证，别把家底押进去', keys: ['创业', '开店', '做生意', '副业', '接单', '合伙', '融资'], label: '创业风险',
+    conflict: '创业的上行收益和下行风险不对称，容易把家底一起赔进去',
+    strategy: '先用最小成本验证需求，把个人资产和经营风险切开' },
+  { id: '法律', focus: '你在关注法律与合规：先把证据和官方渠道这两件事做到位', keys: ['法律', '合规', '合同', '仲裁', '工伤', '纠纷', '维权'], label: '法律风险',
+    conflict: '你关心的事里已经有法律或合规风险，处理顺序错了成本很高',
+    strategy: '先固定证据、走官方渠道，再谈协商和诉讼' },
+  { id: '照护', focus: '你在关注家里老人：先把医保、社保、急救和证件补齐', keys: ['父母', '老人', '养老', '爸妈', '照护'], label: '照护责任',
+    conflict: '上一代的照护需求开始占用你的时间和钱',
+    strategy: '先把老人的医保、社保、急救和证件安排补齐' },
+  { id: '教育', focus: '你在关注孩子的事：先办证、入学、医保这些确定的事', keys: ['孩子', '上学', '幼儿园', '学区', '补课', '教育'], label: '教育支出',
+    conflict: '教育支出刚性、周期长，容易被焦虑推着多花钱',
+    strategy: '先办证、入学、医保这些确定的事，再谈额外投入' },
+];
+
+function fallbackConflict(p) {
+  if (p.income === '低') return '预算紧，钱的边际价值很高，任何要花钱的选项都该往后排';
+  if (p.timeTight) return '时间是最稀缺的资源，需要整块时间的建议现在都做不动';
+  if (p.gritLow) return '靠意志力硬扛的方案很难落地，得先挑不需要坚持的那些';
+  if (p.age && p.age >= 60) return '这个阶段，健康和社保的确定性比收益更重要';
+  if (p.age && p.age < 25) return '处在起点，低成本选择的复利最大';
+  return '现状信息有限，先用零成本条款把底线补齐';
+}
+function fallbackStrategy(p) {
+  const d = p.domains.filter((x) => x !== '其他');
+  if (d.length) return '先从「' + d.slice(0, 3).join('、') + '」这几个领域里成本最低的条款做起';
+  if (p.income === '低') return '先做不花钱那一档，把现金流守住再谈投入';
+  return '先做性价比「极高」的那一批，用最小代价换最大收益';
+}
+
+/**
+ * 生成诊断：核心矛盾 + 性价比策略 + 行动启示（引用精选条款的原文行动句）。
+ * 先只用「一句话困惑」匹配意向，没匹配上再退到职业 / 家庭 / 领域，
+ * 避免选了 8 个领域时 12 条规则全亮、诊断变成一锅粥。
+ * @returns {{coords:string, conflict:string, strategy:string, rules:string[], actions:Array}}
+ */
+function detectIntents(p) {
+  const q = (p.query || '').toLowerCase();
+  let list = INTENTS.filter((it) => it.keys.some((k) => q.includes(k)));
+  let from = '困惑';
+  if (!list.length) {
+    from = '职业/家庭';
+    const h = p.job + ' ' + p.family;
+    list = INTENTS.filter((it) => it.keys.some((k) => h.includes(k)));
+  }
+  if (!list.length) {
+    from = '领域';
+    // 只用用户自己勾选的领域：隐含领域（在职→职业、已婚→婚育）不该拿来说「你在考虑换轨」
+    const picked = (p.selectedDomains && p.selectedDomains.length) ? p.selectedDomains : p.domains;
+    const h = picked.join(' ');
+    list = INTENTS.filter((it) => it.keys.some((k) => h.includes(k)));
+  }
+  return { list: list.slice(0, 3), from };
+}
+
+/**
+ * 由原始输入构造「画像」：领域合并（手选 ∪ 隐含）、意向推断、检索词条展开。
+ * 纯函数，页面与测试共用同一份实现，避免两边逻辑漂移。
+ * @param {{age:number, job:string, family:string, income:string, time:string, grit:string,
+ *          query:string, selectedDomains:string[]}} raw
+ */
+function buildProfile(raw) {
+  const selected = raw.selectedDomains.filter((d) => ALL_DOMAINS.includes(d));
+  const implied = impliedDomains(raw).filter((d) => !selected.includes(d));
+  const p = {
+    age: raw.age, job: raw.job, family: raw.family, income: raw.income,
+    time: raw.time, grit: raw.grit, query: raw.query || '',
+    domains: selected.concat(implied),
+    selectedDomains: selected,
+    impliedDomains: implied,
+    timeTight: raw.time === '紧张',
+    gritLow: raw.grit === '低',
+  };
+  const intents = detectIntents(p);
+  // 只有用户真的写了困惑，才用意向同义词去扩检索；没有困惑时不能凭领域猜词，
+  // 否则「健康」会扩成 生病/住院/失眠…，把一堆不相干的条款顶到前面。
+  const seen = new Set(tokenize(p.query));
+  p.expandedTerms = p.query
+    ? intents.list.flatMap((it) => it.keys)
+      .filter((k) => k.length >= 2 && !seen.has(k) && !p.query.includes(k))
+      .filter((k, i, arr) => arr.indexOf(k) === i)
+      .slice(0, 12)
+    : [];
+  p.intents = intents.list;
+  p.tokens = tokenize(p.query);
+  p.parts = expandParts(p.query).concat(expandParts(p.expandedTerms.join(' ')));
+  return p;
+}
+
+function diagnose(p, top) {
+  const found = detectIntents(p);
+  const hits = found.list;
+  const matchedFromQuery = found.from === '困惑';
+  const main = hits[0] || null;
+  const coords = [
+    p.age ? p.age + ' 岁' : null, p.job, '收入 ' + p.income, p.family,
+    p.timeTight ? '时间紧张' : null, p.gritLow ? '毅力自评低' : null,
+  ].filter(Boolean).join(' · ');
+  // 只有从「一句话困惑」读出来的矛盾才敢下断言；从领域猜的用温和表述
+  const conflict = main ? (matchedFromQuery ? main.conflict : (main.focus || fallbackConflict(p)))
+    : fallbackConflict(p);
+  return {
+    coords,
+    conflict,
+    strategy: (main ? main.strategy : fallbackStrategy(p)) + '。',
+    rules: hits.map((h) => h.label),
+    basedOn: matchedFromQuery ? '困惑' : (hits.length ? found.from : '权重'),
+    extraTerms: p.expandedTerms || [],
+    actions: top.slice(0, TOP_N).map((r) => ({
+      tag: r.item.action_tag,
+      text: r.item.action_text,
+      ref: '第 ' + r.item.section + ' 节 · 第 ' + r.item.index_in_section + ' 条',
+    })),
+  };
+}
+
+/* ============================================================================
+ * 4. UI
+ * ========================================================================== */
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+/** 三档成本 → 人话标签。 */
+const COST_TEXT = {
+  money: ['0 元', '几十到几百元', '上千元以上'],
+  time: ['不花时间', '10 分钟级', '几小时以上'],
+  grit: ['无需毅力', '要一点毅力', '很要毅力'],
+};
+const TAG_CLASS = { '防坑红线': 't-红线', '应急动作': 't-应急', '健康行动': 't-健康', '省钱兜底': 't-省钱', '办事清单': 't-办事', '行动建议': 't-行动' };
+
+/**
+ * 高亮行显示什么。
+ * 行动句若正好是标题的开头（例如标题「先把门槛对一遍：十二条路…」），
+ * 直接再显示一遍就成了重复，这时改用标题冒号后面的那半句 —— 仍然是原文子串。
+ */
+function actionDisplay(it) {
+  const title = it.title || '';
+  const act = it.action_text || '';
+  if (act && title.startsWith(act)) {
+    const rest = title.slice(act.length).replace(/^[，：、,;；\s]+/, '');
+    if ([...rest].length >= 6) return { text: rest, derived: true };
+  }
+  return { text: act, derived: false };
+}
+
+/** 常见场景：一键填表并重新生成。 */
+const SCENARIOS = [
+  { key: '失业', label: '失业 / 辞职过渡', hint: '收入低 · 时间紧 · 社保财务',
+    fields: { job: '待业', income: '低', time: '紧张', grit: '中' },
+    domains: ['社保', '财务', '职业'], query: '失业 社保断缴 找不到工作' },
+  { key: '疾病', label: '重大疾病 / 意外防范', hint: '健康 · 急救 · 报销',
+    fields: { income: '中', time: '正常', grit: '中' },
+    domains: ['健康', '急救', '社保'], query: '生病 住院 急救 医保 报销' },
+  { key: '婚育', label: '结婚 / 生育决策', hint: '已婚有孩 · 婚育婚房',
+    fields: { family: '已婚有孩', time: '正常', grit: '中' },
+    domains: ['婚育', '财务', '法律'], query: '结婚 生育 产检 彩礼 房子' },
+  { key: '职业', label: '职业 / 创业选择', hint: '职业 · 合规 · 财务',
+    fields: { job: '在职', income: '中', time: '正常', grit: '中' },
+    domains: ['职业', '合规', '财务'], query: '换工作 创业 资质 合规 加班' },
+];
+
+const state = {
+  domains: new Set(['健康', '财务']),
+  evidence: new Set(['A', 'B', 'C']),
+  cost: { money: new Set([0, 1, 2]), time: new Set([0, 1, 2]), grit: new Set([0, 1, 2]) },
+  scenario: null,
+  expandCount: 0,      // 0 = 只显示 Top 6；>0 = 已展开多少条其余建议
+  profile: null,
+  result: null,
+};
+
+function readProfile() {
+  const raw = {
+    age: Number($('#age').value) || 0,
+    job: $('#job').value,
+    family: $('#family').value,
+    income: $('#income').value,
+    time: $('#time').value,
+    grit: $('#grit').value,
+    query: $('#query').value.trim(),
+    selectedDomains: ALL_DOMAINS.filter((d) => state.domains.has(d)),
+  };
+  return buildProfile(raw);
+}
+
+/* ---------- 表单渲染 ---------- */
+function chip(html, on, onClick, extra) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'chip' + (extra ? ' ' + extra : '');
+  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.innerHTML = html;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function renderDomainChips() {
+  const box = $('#domains');
+  box.innerHTML = '';
+  const implied = impliedDomains(readProfile());
+  for (const d of ALL_DOMAINS) {
+    const auto = implied.includes(d) && !state.domains.has(d);
+    box.appendChild(chip(esc(d) + (auto ? '<span class="auto">自动</span>' : ''), state.domains.has(d), () => {
+      state.domains.has(d) ? state.domains.delete(d) : state.domains.add(d);
+      state.scenario = null;
+      renderDomainChips(); renderScenarios();
+    }));
+  }
+  const autoList = implied.filter((d) => !state.domains.has(d));
+  $('#domain-note').textContent = autoList.length
+    ? '已按你的职业 / 家庭 / 年龄自动加上：' + autoList.join('、') + '（与手选领域同权重 +3）'
+    : '领域命中时，该节条款加 3 分。「其他」不参与加权。';
+}
+
+function renderScenarios() {
+  const box = $('#scenarios');
+  box.innerHTML = '';
+  for (const sc of SCENARIOS) {
+    box.appendChild(chip(
+      '<span>' + esc(sc.label) + '</span><span class="s-hint">' + esc(sc.hint) + '</span>',
+      state.scenario === sc.key,
+      () => applyScenario(sc), 'scene'));
+  }
+}
+
+/** 场景一键带入：填字段 → 选领域 → 写困惑 → 立即重新生成。 */
+function applyScenario(sc) {
+  for (const [id, v] of Object.entries(sc.fields)) $('#' + id).value = v;
+  state.domains = new Set(sc.domains);
+  state.scenario = sc.key;
+  $('#query').value = sc.query;
+  renderDomainChips();
+  renderScenarios();
+  generate();
+}
+
+function renderFilters() {
+  const mk = (boxSel, values, set, labels) => {
+    const box = $(boxSel);
+    box.innerHTML = '';
+    values.forEach((v) => box.appendChild(chip(esc(labels[v]), set.has(v), () => {
+      set.has(v) ? set.delete(v) : set.add(v);
+      renderFilters();
+    }, 'small')));
+  };
+  mk('#f-evidence', ['A', 'B', 'C'], state.evidence, { A: 'A 级', B: 'B 级', C: 'C 级' });
+  mk('#f-money', [0, 1, 2], state.cost.money, { 0: '不花钱', 1: '少量', 2: '较多' });
+  mk('#f-time', [0, 1, 2], state.cost.time, { 0: '不花时间', 1: '一点', 2: '较多' });
+  mk('#f-grit', [0, 1, 2], state.cost.grit, { 0: '不需要', 1: '一点', 2: '很多' });
+}
+
+function renderStats() {
+  const free = ITEMS.filter((i) => i.cost_money === 0 && i.cost_time === 0 && i.cost_grit === 0).length;
+  $('#stats').innerHTML =
+    '<span><b>' + ITEMS.length + '</b>条条款</span>' +
+    '<span><b>' + new Set(ITEMS.map((i) => i.section)).size + '</b>节</span>' +
+    '<span><b>' + ITEMS.filter((i) => i.evidence === 'A').length + '</b>条证据 A</span>' +
+    '<span><b>' + free + '</b>条零成本</span>' +
+    '<span><b>' + MAX_VISIBLE + '</b>条上限</span>';
+  $('#total').textContent = ITEMS.length;
+  $('#foot-total').textContent = ITEMS.length;
+}
+
+/* ---------- 结果渲染 ---------- */
+function passesFilter(it) {
+  return state.evidence.has(it.evidence)
+    && state.cost.money.has(it.cost_money)
+    && state.cost.time.has(it.cost_time)
+    && state.cost.grit.has(it.cost_grit);
+}
+
+/** 成本仪表：三档各三个点，点亮的越少越便宜。 */
+function pips(name, tier) {
+  let s = '';
+  for (let i = 0; i < 3; i++) s += '<span class="pip' + (i <= tier ? ' on' : '') + '"></span>';
+  return '<span class="gauge' + (tier === 0 ? ' zero' : '') + '"><span class="gname">' + name +
+    '</span><span class="pips">' + s + '</span></span>';
+}
+
+/** 卡片：默认只显示 标题 / 行动高亮 / 性价比 / 证据 / 出处，其余进「展开详情」。
+ *  order = 行动顺序（1 起）；rank = 全局排序位次，放在详情里备查。 */
+function cardHtml(row, order, hero) {
+  const it = row.item;
+  const r = RATIO_SCORE[row.ratio];
+  const hitLabel = []
+    .concat(row.hitDomains.length ? ['领域 ' + row.hitDomains.join('、')] : [])
+    .concat(row.hits && row.hits.length ? ['关键词 ' + row.hits.slice(0, 2).join('、')] : [])
+    .join(' · ');
+
+  const full = [];
+  if (it.body) full.push('<p><span class="lab2">正文：</span>' + esc(it.body) + '</p>');
+  if (it.gain && it.gain !== it.body) full.push('<p><span class="lab2">依据 / 收益：</span>' + esc(it.gain) + '</p>');
+  if (it.cost_note) full.push('<p><span class="lab2">成本说明：</span>' + esc(it.cost_note) + '</p>');
+  if (it.note) full.push('<p><span class="lab2">备注：</span>' + esc(it.note) + '</p>');
+  full.push('<p class="src-line"><span class="lab2">原书出处：</span>' + esc(it.source || '书中未标注') + '</p>');
+
+  const why = row.reasons.map((x) => '<li>' + esc(x.label) + ' <b>+' + x.value + '</b></li>').join('');
+
+  return '' +
+  '<article class="card r' + r + (hero ? ' hero' : '') + '" style="animation-delay:' + Math.min(order - 1, 12) * 18 + 'ms">' +
+    '<div class="card-head"><span class="rank">' + order + '</span><h3>' + esc(it.title) + '</h3></div>' +
+    '<p class="action"><span class="action-tag ' + (TAG_CLASS[it.action_tag] || 't-行动') + '">' +
+      esc(it.action_tag) + '</span><span class="action-text">' + esc(actionDisplay(it).text) + '</span></p>' +
+    '<div class="card-meta">' +
+      '<span class="badge ratio-r' + r + '">性价比 ' + row.ratio + '</span>' +
+      '<span class="badge ev">证据 ' + esc(it.evidence) + '</span>' +
+      (hitLabel ? '<span class="badge hit">命中 ' + esc(hitLabel) + '</span>' : '') +
+      '<span class="ref">第 ' + it.section + ' 节 · 第 ' + it.index_in_section + ' 条 · ' + esc(it.section_name) + '</span>' +
+    '</div>' +
+    '<details class="more"><summary>展开详情</summary>' +
+      '<div class="meter">' + pips('钱', it.cost_money) + pips('时间', it.cost_time) + pips('毅力', it.cost_grit) + '</div>' +
+      '<div class="cost-line">' + esc(COST_TEXT.money[it.cost_money]) + ' · ' + esc(COST_TEXT.time[it.cost_time]) +
+        ' · ' + esc(COST_TEXT.grit[it.cost_grit]) + '</div>' +
+      '<div class="full">' + full.join('') + '</div>' +
+      '<details class="why"><summary>为什么排在这里</summary>' +
+        '<div class="why-head"><span>加权总分</span><span class="total">' + row.score + '</span></div>' +
+        '<ul>' + why + '</ul>' +
+        '<p class="rules" style="margin-top:8px">全局排序位次 #' + (row.rank + 1) + '（共 ' + (row.total || '?') + ' 条命中）</p>' +
+      '</details>' +
+    '</details>' +
+  '</article>';
+}
+
+function diagnosisHtml(diag, rankedCount) {
+  const actions = diag.actions.map((a, i) =>
+    '<li><span class="n">' + (i + 1) + '</span><span class="txt">' +
+      '<span class="action-tag ' + (TAG_CLASS[a.tag] || 't-行动') + '" style="margin-right:6px">' + esc(a.tag) + '</span>' +
+      esc(a.text) + '</span><span class="ref">' + esc(a.ref) + '</span></li>').join('');
+  const src = { '困惑': '依据你写的一句话困惑', '领域': '依据你勾选的关心领域', '权重': '依据你的收入 / 时间 / 毅力权重' }[diag.basedOn];
+  const rules = '诊断依据：<b>' + src + '</b>' +
+    (diag.rules.length ? '　规则命中：<b>' + esc(diag.rules.join(' · ')) + '</b>' : '') +
+    (diag.extraTerms && diag.extraTerms.length
+      ? '<br>为精选扩充的检索词：<b>' + esc(diag.extraTerms.slice(0, 10).join('、')) + '</b>' : '') +
+    '<br>规则拼装，无模型推断，也不编造你的具体数字。';
+  return '<section class="diagnosis">' +
+    '<h2>【现状诊断】<span class="tagline">规则生成 · 不上传数据</span></h2>' +
+    '<p class="coords">' + esc(diag.coords) + '　·　参与计算的条款 ' + rankedCount + ' 条</p>' +
+    '<p class="dl"><span class="k">核心矛盾</span><span>' + esc(diag.conflict) + '。</span></p>' +
+    '<p class="dl"><span class="k">性价比策略</span><span>' + esc(diag.strategy) + '</span></p>' +
+    '<div class="rx"><div class="rx-title">行动启示（逐字取自原书，可在下面卡片里核对）</div>' +
+      '<ol>' + actions + '</ol></div>' +
+    '<p class="rules">' + rules + '</p>' +
+  '</section>';
+}
+
+function render(scroll) {
+  const host = $('#results');
+  const p = state.profile;
+  if (!p) return;
+
+  const filtered = ITEMS.filter(passesFilter);
+  const ranked = rankItems(filtered, p).map((row, i) => Object.assign(row, { rank: i, total: filtered.length }));
+  const sel = selectTop(ranked, p);
+  state.result = { ranked, sel };
+
+  if (!ranked.length) {
+    host.innerHTML = '<div class="empty"><h3>这个组合下没有结果</h3>' +
+      '<p>筛选条件收得太紧了。把「证据等级」或某一档成本重新勾上，再点一次「生成建议」。</p></div>';
+    return;
+  }
+
+  const diag = diagnose(p, sel.top);
+  let html = diagnosisHtml(diag, ranked.length);
+
+  // 精选 Top 3（顺序 = 行动顺序，不是全局位次）
+  html += '<div class="results-head"><h2>精选 Top ' + sel.top.length + '</h2>' +
+    '<span class="count">优先做这三件</span>' +
+    '<span class="blurb">精选只从「命中你的困惑关键词或关心领域」的条款里挑：先比命中几个词条，再比加权总分（含性价比档位分），' +
+    '同分时性价比档位高者优先；与当前阶段明显不符的条款会降一位。</span></div>' +
+    '<div class="cards">' + sel.top.map((row, i) => cardHtml(row, i + 1, true)).join('') + '</div>';
+
+  // 备选（补足到 6 条）
+  if (sel.rest.length) {
+    html += '<div class="results-head"><h2>接下来可以看</h2><span class="count">' + sel.rest.length + ' 条</span>' +
+      '<span class="blurb">这些是按性价比总分补上来的，没有命中你的个人信号。</span></div>' +
+      '<div class="cards">' + sel.rest.map((row, i) => cardHtml(row, sel.top.length + i + 1, false)).join('') + '</div>';
+  }
+
+  // 其余：默认折叠，点开才渲染（分批，避免一次塞进几百张卡）
+  const shownHidden = Math.min(state.expandCount, sel.hidden.length);
+  if (sel.hidden.length && state.expandCount === 0) {
+    html += '<div class="actions"><button class="ghost" id="expand" type="button">展开查看其他相关建议（共 ' +
+      sel.hidden.length + ' 条）</button>' +
+      '<span class="note">默认只给 ' + MAX_VISIBLE + ' 条，避免信息过载</span></div>';
+  } else if (shownHidden > 0) {
+    html += '<div class="results-head"><h2>其余相关建议</h2>' +
+      '<span class="count">已显示 ' + shownHidden + ' / ' + sel.hidden.length + ' 条</span>' +
+      '<span class="blurb">已经展开的条目。</span></div>' +
+      '<div class="cards">' + sel.hidden.slice(0, shownHidden)
+        .map((row, i) => cardHtml(row, MAX_VISIBLE + i + 1, false)).join('') + '</div>' +
+      '<div class="actions">' +
+        (shownHidden < sel.hidden.length
+          ? '<button class="ghost" id="expand" type="button">继续展开（还有 ' + (sel.hidden.length - shownHidden) + ' 条）</button>'
+          : '') +
+        '<button class="ghost" id="collapse" type="button">收起，只看 Top ' + MAX_VISIBLE + '</button></div>';
+  }
+
+  html += '<p class="disclaimer">排序结果是基于原书成本收益数据的计算工具，不是医疗/法律/财务诊断。' +
+    '请点击卡片中的原书出处，核对原文后再做决定。</p>';
+
+  host.innerHTML = html;
+  const ex = $('#expand');
+  if (ex) ex.addEventListener('click', () => { state.expandCount += EXPAND_STEP; render(false); });
+  const co = $('#collapse');
+  if (co) co.addEventListener('click', () => { state.expandCount = 0; render(false); });
+
+  if (scroll) {
+    const first = host.querySelector('.diagnosis');
+    if (first) first.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+}
+
+function generate() {
+  state.profile = readProfile();
+  state.expandCount = 0;
+  render(true);
+}
+
+/* ---------- 事件绑定 ---------- */
+$('#go').addEventListener('click', generate);
+$('#reset').addEventListener('click', () => {
+  $('#age').value = 30; $('#job').value = '在职'; $('#income').value = '中';
+  $('#family').value = '单身'; $('#time').value = '正常'; $('#grit').value = '中';
+  $('#query').value = '';
+  state.domains = new Set(['健康', '财务']);
+  state.evidence = new Set(['A', 'B', 'C']);
+  state.cost = { money: new Set([0, 1, 2]), time: new Set([0, 1, 2]), grit: new Set([0, 1, 2]) };
+  state.scenario = null; state.profile = null; state.result = null;
+  renderDomainChips(); renderScenarios(); renderFilters();
+  document.querySelectorAll('details.filters').forEach((d) => { d.open = false; });
+  $('#results').innerHTML = '<div class="empty"><h3>已重置</h3>' +
+    '<p>上面恢复了默认值。点「生成建议」重新诊断，或先挑一个常见场景。</p></div>';
+});
+$('#query').addEventListener('keydown', (e) => { if (e.key === 'Enter') generate(); });
+['age', 'job', 'family'].forEach((id) => $('#' + id).addEventListener('change', () => {
+  state.scenario = null; renderDomainChips(); renderScenarios();
+}));
+
+/* ---------- 启动 ---------- */
+renderStats();
+renderDomainChips();
+renderScenarios();
+renderFilters();
+console.info('修改完成，已强制限制为 Top 6 建议');
+generate();          // 打开就有诊断，不用先点一次
+</script>
+</body>
+</html>

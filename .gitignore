@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+
+# Python 虚拟环境（e2e_cdp.py 只用标准库，不需要装任何包）
+.venv/
+__pycache__/
+*.pyc
+
+# 书稿原文不入库：CC BY 4.0 的第三方内容，按 README 里的一条命令即可重新拉取
+src/book/
